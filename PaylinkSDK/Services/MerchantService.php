@@ -18,7 +18,7 @@ class MerchantService
      * @see https://paylinksa.readme.io/docs/authentication#request-body-parameters
      */
     private string $serverLink;
-    private string $redirectDomain;
+    private string $paymentPagePrefix;
     private string $appId;
     private string $secretKey;
     private bool $persistToken;
@@ -32,7 +32,7 @@ class MerchantService
         if (app()->environment('local') || app()->environment('testing')) {
             // links
             $this->serverLink = 'https://restpilot.paylink.sa';
-            $this->redirectDomain = 'https://paymentpilot.paylink.sa/pay/info';
+            $this->paymentPagePrefix = 'https://paymentpilot.paylink.sa/pay/info';
 
             // config
             $this->appId = config('paylinkconfig.merchant.testing.app_id', 'APP_ID_1123453311');
@@ -41,7 +41,7 @@ class MerchantService
         } else {
             // links
             $this->serverLink = 'https://restapi.paylink.sa';
-            $this->redirectDomain = 'https://payment.paylink.sa/pay/order';
+            $this->paymentPagePrefix = 'https://payment.paylink.sa/pay/order';
 
             // config
             $this->appId = config('paylinkconfig.merchant.production.app_id');
@@ -454,8 +454,8 @@ class MerchantService
         return $this->secretKey;
     }
 
-    public function getRedirectUrl(string $transactionNo): string
+    public function getPaymentPageUrl(string $transactionNo): string
     {
-        return $this->redirectDomain . '/' . $transactionNo;
+        return $this->paymentPagePrefix . '/' . $transactionNo;
     }
 }
