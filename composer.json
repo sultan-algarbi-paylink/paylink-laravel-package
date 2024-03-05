@@ -1,0 +1,25 @@
+{
+  "name": "paylink/laravel",
+  "description": "Paylink SDK for integrating with Paylink gateway.",
+  "keywords": [
+    "paylink",
+    "sdk",
+    "integration",
+    "api",
+    "payment gateway",
+    "payment"
+  ],
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Sultan Algarbi",
+      "email": "sultanye@gmail.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Paylink\\": "src/"
+    }
+  }
+}
