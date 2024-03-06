@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
 // Import Paylink SDK
-use PaylinkSDK\Services\PartnerService;
+use Paylink\Services\PartnerService;
 
 class PartnerController extends Controller
 {

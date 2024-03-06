@@ -1,9 +1,9 @@
 <?php
 
-namespace PaylinkSDK\Services;
+namespace Paylink\Services;
 
 use Illuminate\Support\Facades\Http;
-use PaylinkSDK\Models\PaylinkProduct;
+use Paylink\Models\PaylinkProduct;
 
 class MerchantService
 {
@@ -17,7 +17,7 @@ class MerchantService
      * Paylink Service configration
      * @see https://paylinksa.readme.io/docs/authentication#request-body-parameters
      */
-    private string $serverLink;
+    private string $apiLink;
     private string $paymentPagePrefix;
     private string $appId;
     private string $secretKey;
@@ -29,24 +29,24 @@ class MerchantService
      */
     public function __construct()
     {
-        if (app()->environment('local') || app()->environment('testing')) {
+        if (app()->environment('production')) {
             // links
-            $this->serverLink = 'https://restpilot.paylink.sa';
-            $this->paymentPagePrefix = 'https://paymentpilot.paylink.sa/pay/info';
-
-            // config
-            $this->appId = config('paylinkconfig.merchant.testing.app_id', 'APP_ID_1123453311');
-            $this->secretKey = config('paylinkconfig.merchant.testing.secret_key', '0662abb5-13c7-38ab-cd12-236e58f43766');
-            $this->persistToken = config('paylinkconfig.merchant.testing.persist_token', false);
-        } else {
-            // links
-            $this->serverLink = 'https://restapi.paylink.sa';
+            $this->apiLink = 'https://restapi.paylink.sa';
             $this->paymentPagePrefix = 'https://payment.paylink.sa/pay/order';
 
             // config
-            $this->appId = config('paylinkconfig.merchant.production.app_id');
-            $this->secretKey = config('paylinkconfig.merchant.production.secret_key');
-            $this->persistToken = config('paylinkconfig.merchant.production.persist_token', false);
+            $this->appId = config('paylink.merchant.production.app_id');
+            $this->secretKey = config('paylink.merchant.production.secret_key');
+            $this->persistToken = config('paylink.merchant.production.persist_token', false);
+        } else {
+            // links
+            $this->apiLink = 'https://restpilot.paylink.sa';
+            $this->paymentPagePrefix = 'https://paymentpilot.paylink.sa/pay/info';
+
+            // config
+            $this->appId = config('paylink.merchant.testing.app_id', 'APP_ID_1123453311');
+            $this->secretKey = config('paylink.merchant.testing.secret_key', '0662abb5-13c7-38ab-cd12-236e58f43766');
+            $this->persistToken = config('paylink.merchant.testing.persist_token', false);
         }
     }
 
@@ -67,7 +67,7 @@ class MerchantService
         ];
 
         // endpoint
-        $endpoint = $this->serverLink . '/api/auth';
+        $endpoint = $this->apiLink . '/api/auth';
 
         // Send a POST request to the server
         $response = Http::withHeaders([
@@ -139,18 +139,21 @@ class MerchantService
             return is_string($brand) && in_array($brand, self::VALID_CARD_BRANDS);
         });
 
+
         // Convert PaylinkProduct objects to arrays
         $productsArray = [];
-        if (empty($products)) {
-            foreach ($products as $product) {
+        if (!empty($products)) {
+            foreach ($products as $index => $product) {
                 if ($product instanceof PaylinkProduct) {
                     $productsArray[] = $product->toArray();
+                } else {
+                    throw new \InvalidArgumentException("Invalid product type at index $index");
                 }
             }
         }
 
         // endpoint
-        $endpoint = $this->serverLink . '/api/addInvoice';
+        $endpoint = $this->apiLink . '/api/addInvoice';
 
         // Request body parameters
         $requestBody = [
@@ -180,9 +183,72 @@ class MerchantService
     }
 
     /**
+     * Paylink Get Orders:
+     * The merchant's application is responsible for calling this endpoint to check the payment status of the invoice using "TransactionNo." Then from the response,
+     * the merchant's application checks the invoice payment status from the field "orderStatus."
+     * 
+     * @param string $transactionNo.
+     * 
+     * @see https://paylinksa.readme.io/docs/order-request
+     */
+    public function getInvoice(string $transactionNo)
+    {
+        if (empty($this->idToken)) {
+            $this->_setIdToken();
+        }
+
+        // endpoint
+        $endpoint = $this->apiLink . '/api/getInvoice/' . $transactionNo;
+
+        // Send a POST request to the server
+        $response = Http::withHeaders([
+            'accept' => '*/*',
+            'content-type' => 'application/json',
+            'Authorization' => 'Bearer ' . $this->idToken,
+        ])->get($endpoint);
+
+        return $response;
+    }
+
+    /**
+     * Paylink Cancel Orders:
+     * enables the cancellation of an existing transaction initiated by a merchant using the Paylink payment gateway.
+     * 
+     * @param string $transactionNo.
+     * 
+     * @see https://paylinksa.readme.io/docs/cancel-invoice
+     */
+    public function cancelInvoice(string $transactionNo)
+    {
+        if (empty($this->idToken)) {
+            $this->_setIdToken();
+        }
+
+        // endpoint
+        $endpoint = $this->apiLink . '/api/cancelInvoice';
+
+        // Request body parameters
+        $requestBody = [
+            'transactionNo' => $transactionNo,
+        ];
+
+        // Send a POST request to the server
+        $response = Http::withHeaders([
+            'accept' => '*/*',
+            'content-type' => 'application/json',
+            'Authorization' => 'Bearer ' . $this->idToken,
+        ])->post($endpoint, $requestBody);
+
+        return $response;
+    }
+
+    /**
      * Pay Invoices (Direct Integration):
-     * This function is designed for merchants,
-     * enabling them to create invoices and accept online payments through the Paylink gateway.
+     *          This specific endpoint is designed for merchants,
+     *          enabling them to create invoices and accept online payments through the Paylink gateway.
+     *          The integration process facilitates the collection of card information directly from customers.
+     *          This information is then utilized for processing payments on your webpage.
+     *          Notably, this method provides immediate results regarding the payment status, eliminating the need for webpage redirections.
      *
      * @param float $amount The total amount of the invoice. NOTE: Buyer will pay this amount regardless of the total amounts of the products' prices.
      * @param string $clientMobile The mobile number of the client.
@@ -203,7 +269,7 @@ class MerchantService
      * 
      * @see https://paylinksa.readme.io/docs/add-invoices-direct
      */
-    public function payInvoice(
+    public function processPaymentWithCardInfo(
         float $amount,
         string $clientMobile,
         string $clientName,
@@ -243,7 +309,7 @@ class MerchantService
         }
 
         // endpoint
-        $endpoint = $this->serverLink . '/api/payInvoice';
+        $endpoint = $this->apiLink . '/api/payInvoice';
 
         // Request body parameters
         $requestBody = [
@@ -316,7 +382,7 @@ class MerchantService
         }
 
         // endpoint
-        $endpoint = $this->serverLink . '/api/registerPayment';
+        $endpoint = $this->apiLink . '/api/registerPayment';
 
         // Request body parameters
         $requestBody = [
@@ -352,66 +418,6 @@ class MerchantService
     }
 
     /**
-     * Paylink Get Orders:
-     * The merchant's application is responsible for calling this endpoint to check the payment status of the invoice using "TransactionNo." Then from the response,
-     * the merchant's application checks the invoice payment status from the field "orderStatus."
-     * 
-     * @param string $transactionNo.
-     * 
-     * @see https://paylinksa.readme.io/docs/order-request
-     */
-    public function getInvoice(string $transactionNo)
-    {
-        if (empty($this->idToken)) {
-            $this->_setIdToken();
-        }
-
-        // endpoint
-        $endpoint = $this->serverLink . '/api/getInvoice/' . $transactionNo;
-
-        // Send a POST request to the server
-        $response = Http::withHeaders([
-            'accept' => '*/*',
-            'content-type' => 'application/json',
-            'Authorization' => 'Bearer ' . $this->idToken,
-        ])->get($endpoint);
-
-        return $response;
-    }
-
-    /**
-     * Paylink Cancel Orders:
-     * enables the cancellation of an existing transaction initiated by a merchant using the Paylink payment gateway.
-     * 
-     * @param string $transactionNo.
-     * 
-     * @see https://paylinksa.readme.io/docs/cancel-invoice
-     */
-    public function cancelInvoice(string $transactionNo)
-    {
-        if (empty($this->idToken)) {
-            $this->_setIdToken();
-        }
-
-        // endpoint
-        $endpoint = $this->serverLink . '/api/cancelInvoice';
-
-        // Request body parameters
-        $requestBody = [
-            'transactionNo' => $transactionNo,
-        ];
-
-        // Send a POST request to the server
-        $response = Http::withHeaders([
-            'accept' => '*/*',
-            'content-type' => 'application/json',
-            'Authorization' => 'Bearer ' . $this->idToken,
-        ])->post($endpoint, $requestBody);
-
-        return $response;
-    }
-
-    /**
      * Sending digital product information:
      * First, they must send the digital product information
      * to the customer through Paylink after the customer pays the order.
@@ -430,7 +436,7 @@ class MerchantService
         }
 
         // endpoint
-        $endpoint = $this->serverLink . '/api/sendDigitalProduct';
+        $endpoint = $this->apiLink . '/api/sendDigitalProduct';
 
         // Request body parameters
         $requestBody = [

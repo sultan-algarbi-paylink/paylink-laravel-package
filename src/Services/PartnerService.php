@@ -1,6 +1,6 @@
 <?php
 
-namespace PaylinkSDK\Services;
+namespace Paylink\Services;
 
 use Illuminate\Support\Facades\Http;
 
@@ -10,7 +10,7 @@ class PartnerService
      * Paylink Service configration
      * @see https://paylinksa.readme.io/docs/partner-authentication#authentication
      */
-    private string $serverLink;
+    private string $apiLink;
     private string $profileNo;
     private string $apiKey;
     private bool $persistToken;
@@ -21,22 +21,22 @@ class PartnerService
      */
     public function __construct()
     {
-        if (app()->environment('local') || app()->environment('testing')) {
+        if (app()->environment('production')) {
             // links
-            $this->serverLink = 'https://restpilot.paylink.sa';
+            $this->apiLink = 'https://restapi.paylink.sa';
 
             // config
-            $this->profileNo = config('paylinkconfig.partner.testing.profileNo');
-            $this->apiKey = config('paylinkconfig.partner.testing.apiKey');
-            $this->persistToken = config('paylinkconfig.partner.testing.persist_token');
+            $this->profileNo = config('paylink.partner.production.profileNo');
+            $this->apiKey = config('paylink.partner.production.apiKey');
+            $this->persistToken = config('paylink.partner.production.persist_token');
         } else {
             // links
-            $this->serverLink = 'https://restapi.paylink.sa';
+            $this->apiLink = 'https://restpilot.paylink.sa';
 
             // config
-            $this->profileNo = config('paylinkconfig.partner.production.profileNo');
-            $this->apiKey = config('paylinkconfig.partner.production.apiKey');
-            $this->persistToken = config('paylinkconfig.partner.production.persist_token');
+            $this->profileNo = config('paylink.partner.testing.profileNo');
+            $this->apiKey = config('paylink.partner.testing.apiKey');
+            $this->persistToken = config('paylink.partner.testing.persist_token');
         }
     }
 
@@ -57,7 +57,7 @@ class PartnerService
         ];
 
         // endpoint
-        $endpoint = $this->serverLink . '/api/partner/auth';
+        $endpoint = $this->apiLink . '/api/partner/auth';
 
         // Send a POST request to the server
         $response = Http::withHeaders([
@@ -95,7 +95,7 @@ class PartnerService
         }
 
         // endpoint
-        $endpoint = $this->serverLink . '/rest/partner/getMyMerchants';
+        $endpoint = $this->apiLink . '/rest/partner/getMyMerchants';
 
         // Send a POST request to the server
         $response = Http::withHeaders([
@@ -135,7 +135,7 @@ class PartnerService
         }
 
         // endpoint
-        $endpoint = $this->serverLink . "/rest/partner/getMerchantKeys/$searchType/$searchValue?profileNo=$profileNo";
+        $endpoint = $this->apiLink . "/rest/partner/getMerchantKeys/$searchType/$searchValue?profileNo=$profileNo";
 
         // Send a POST request to the server
         $response = Http::withHeaders([
@@ -181,7 +181,7 @@ class PartnerService
             ];
 
             // endpoint
-            $endpoint = $this->serverLink . "/rest/partner/test/archive-merchant/$partnerProfileNo";
+            $endpoint = $this->apiLink . "/rest/partner/test/archive-merchant/$partnerProfileNo";
 
             // Send a POST request to the server
             $response = Http::withHeaders([
@@ -239,7 +239,7 @@ class PartnerService
         ];
 
         // endpoint
-        $endpoint = $this->serverLink . "/api/partner/register/check-license";
+        $endpoint = $this->apiLink . "/api/partner/register/check-license";
 
         // Send a POST request to the server
         $response = Http::withHeaders([
@@ -284,7 +284,7 @@ class PartnerService
         ];
 
         // endpoint
-        $endpoint = $this->serverLink . "/api/partner/register/validate-otp";
+        $endpoint = $this->apiLink . "/api/partner/register/validate-otp";
 
         // Send a POST request to the server
         $response = Http::withHeaders([
@@ -359,7 +359,7 @@ class PartnerService
         ];
 
         // endpoint
-        $endpoint = $this->serverLink . "/api/partner/register/add-info";
+        $endpoint = $this->apiLink . "/api/partner/register/add-info";
 
         // Send a POST request to the server
         $response = Http::withHeaders([
@@ -402,7 +402,7 @@ class PartnerService
         ];
 
         // endpoint
-        $endpoint = $this->serverLink . "/api/partner/register/confirm-account";
+        $endpoint = $this->apiLink . "/api/partner/register/confirm-account";
 
         // Send a POST request to the server
         $response = Http::withHeaders([

@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
 // Import Paylink SDK
-use PaylinkSDK\Services\MerchantService;
-use PaylinkSDK\Models\PaylinkProduct;
+use Paylink\Services\MerchantService;
+use Paylink\Models\PaylinkProduct;
 
 class MerchantController extends Controller
 {
@@ -97,7 +97,7 @@ class MerchantController extends Controller
     }
 
     // Pay Invoices (Direct Integration)
-    public function payInvoice(Request $request)
+    public function processPaymentWithCardInformation(Request $request)
     {
         // Validate incoming request data
         $request->validate([
@@ -151,7 +151,7 @@ class MerchantController extends Controller
         }
 
         // calling paylink to pay Invoice
-        $response = $merchantService->payInvoice(
+        $response = $merchantService->processPaymentWithCardInformation(
             amount: $request->input('amount'),
             clientMobile: $request->input('clientMobile'),
             clientName: $request->input('clientName'),
