@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace Paylink\Examples;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
