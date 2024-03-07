@@ -102,7 +102,7 @@ class MerchantController extends Controller
     }
 
     // Pay Invoices (Direct Integration)
-    public function processPaymentWithCardInformation(Request $request)
+    public function processPaymentWithCardInfo(Request $request)
     {
         // Validate incoming request data
         $request->validate([
@@ -156,7 +156,7 @@ class MerchantController extends Controller
         }
 
         // calling paylink to pay Invoice
-        $response = $merchantService->processPaymentWithCardInformation(
+        $response = $merchantService->processPaymentWithCardInfo(
             amount: $request->input('amount'),
             clientMobile: $request->input('clientMobile'),
             clientName: $request->input('clientName'),
