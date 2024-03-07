@@ -47,7 +47,7 @@ class PartnerService
      * 
      * @see https://paylinksa.readme.io/docs/authentication
      */
-    public function authentication()
+    private function authentication()
     {
         // Request body parameters
         $requestBody = [

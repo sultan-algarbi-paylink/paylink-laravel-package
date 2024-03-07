@@ -1,9 +1,10 @@
 {
   "name": "paylinksa/laravel",
-  "description": "Paylink SDK for integrating with Paylink gateway.",
+  "description": "Paylink Package for integrating with Paylink gateway.",
   "keywords": [
     "paylink",
     "sdk",
+    "package",
     "integration",
     "api",
     "payment gateway",
