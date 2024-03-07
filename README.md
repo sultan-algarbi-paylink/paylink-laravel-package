@@ -4,7 +4,7 @@ This package enables seamless integration with the Paylink payment gateway withi
 
 ## Installation
 
-You can install the Paylink Package via Composer. Run the following command in your terminal:
+You can install the `paylinksa/laravel` package via composer. Run the following command in your terminal:
 
 ```bash
 composer require paylinksa/laravel
@@ -21,7 +21,7 @@ After installing the package, you need to add the Paylink service provider to yo
    ```php
    'providers' => [
        // Other Service Providers...
-       Paylink\Paylink\PaylinkServiceProvider::class,
+       Paylink\PaylinkServiceProvider::class,
    ],
    ```
 

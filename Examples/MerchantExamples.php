@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
-// Import Paylink SDK
+// Import Paylink Package
 use Paylink\Services\MerchantService;
 use Paylink\Models\PaylinkProduct;
 
