@@ -81,6 +81,13 @@ You can now use the Paylink package within your Laravel application. Import the 
 - [Merchant Service](docs/MerchantService.md)
 - [Partner Service](docs/PartnerService.md)
 
+### Examples:
+
+- [Merchant Examples](examples/MerchantExamples.php)
+- [Partner Examples](examples/PartnerExamples.php)
+- [Activation Webhook](examples/ActivationWebhook.php) (used by partners)
+- [Payment Webhook](examples/PaymentWebhook.php) (used by merchants)
+
 For detailed usage instructions, refer to the [official Paylink API documentation](https://developer.paylink.sa/).
 
 ## Support

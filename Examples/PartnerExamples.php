@@ -10,19 +10,6 @@ use Paylink\Services\PartnerService;
 
 class PartnerController extends Controller
 {
-    // Authenticates with Paylink service
-    public function authentication()
-    {
-        // Create an instance of PartnerService
-        $partnerService = new PartnerService();
-
-        // Perform authentication with Paylink
-        $response = $partnerService->authentication();
-
-        // Return response as JSON
-        return response()->json($response->json(), $response->status());
-    }
-
     // Retrieves merchants associated with the partner
     public function getMyMerchants(Request $request)
     {

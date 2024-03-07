@@ -11,18 +11,6 @@ use Paylink\Models\PaylinkProduct;
 
 class MerchantController extends Controller
 {
-    // Authenticates with Paylink service
-    public function authentication()
-    {
-        // Create an instance of MerchantService
-        $merchantService = new MerchantService();
-
-        // Perform authentication with Paylink
-        $response = $merchantService->authentication();
-
-        // Return response as JSON
-        return response()->json($response->json(), $response->status());
-    }
 
     // Adds a new invoice
     public function addInvoice(Request $request)
@@ -42,7 +30,7 @@ class MerchantController extends Controller
             'products.*.imageSrc' => 'nullable|string',
             'products.*.specificVat' => 'nullable|numeric',
             'products.*.productCost' => 'nullable|numeric',
-            'callBackUrl' => 'nullable|url',
+            'callBackUrl' => 'required|url',
             'cancelUrl' => 'nullable|url',
             'clientEmail' => 'nullable|email',
             'currency' => 'nullable|string',
@@ -59,6 +47,8 @@ class MerchantController extends Controller
         // Prepare products as PaylinkProduct objects
         $products = [];
         if ($request->has('products')) {
+
+            // option 1:
             foreach ($request->input('products') as $item) {
                 // Create PaylinkProduct object for each product
                 $product = new PaylinkProduct(
@@ -73,6 +63,21 @@ class MerchantController extends Controller
                 );
                 $products[] = $product;
             }
+
+            // option 2
+            // $items = $request->input('products');
+            // // update the value of each key-value pair based on your items keys
+            // $keyMap = [
+            //     'title' => 'title',
+            //     'price' => 'price',
+            //     'qty' => 'qty',
+            //     'description' => 'description',
+            //     'isDigital' => 'isDigital',
+            //     'imageSrc' => 'imageSrc',
+            //     'specificVat' => 'specificVat',
+            //     'productCost' => 'productCost',
+            // ];
+            // $products = PaylinkProduct::createFromItems($items, $keyMap);
         }
 
         // Call Paylink to add a new invoice
@@ -82,7 +87,7 @@ class MerchantController extends Controller
             clientName: $request->input('clientName'),
             orderNumber: $request->input('orderNumber'),
             products: $products,
-            callBackUrl: $request->input('callBackUrl'), // optional
+            callBackUrl: $request->input('callBackUrl'),
             cancelUrl: $request->input('cancelUrl'), // optional
             clientEmail: $request->input('clientEmail'), // optional
             currency: $request->input('currency'), // optional
@@ -118,7 +123,7 @@ class MerchantController extends Controller
             'cardSecurityCode' => 'required|string',
             'cardExpiryMonth' => 'required|string',
             'cardExpiryYear' => 'required|string',
-            'callBackUrl' => 'nullable|url',
+            'callBackUrl' => 'required|url',
             'cancelUrl' => 'nullable|url',
             'clientEmail' => 'nullable|email',
             'currency' => 'nullable|string',
@@ -161,7 +166,7 @@ class MerchantController extends Controller
             cardSecurityCode: $request->input('cardSecurityCode'),
             cardExpiryMonth: $request->input('cardExpiryMonth'),
             cardExpiryYear: $request->input('cardExpiryYear'),
-            callBackUrl: $request->input('callBackUrl'), // optional
+            callBackUrl: $request->input('callBackUrl'),
             cancelUrl: $request->input('cancelUrl'), // optional
             clientEmail: $request->input('clientEmail'), // optional
             currency: $request->input('currency'), // optional
@@ -187,7 +192,7 @@ class MerchantController extends Controller
             'recurringIntervalDays' => 'required|numeric|min:1|max:180',
             'recurringIterations' => 'required|numeric',
             'recurringRetryCount' => 'required|numeric|min:0|max:5',
-            'callbackUrl' => 'nullable|url',
+            'callbackUrl' => 'required|url',
             'currencyCode' => 'nullable|string',
             'customerEmail' => 'nullable|email',
             'paymentNote' => 'nullable|string',
@@ -205,7 +210,7 @@ class MerchantController extends Controller
             recurringIntervalDays: $request->input('recurringIntervalDays'),
             recurringIterations: $request->input('recurringIterations'),
             recurringRetryCount: $request->input('recurringRetryCount'),
-            callbackUrl: $request->input('callbackUrl'), // optional
+            callbackUrl: $request->input('callbackUrl'),
             currencyCode: $request->input('currencyCode'), // optional
             customerEmail: $request->input('customerEmail'), // optional
             paymentNote: $request->input('paymentNote'), // optional
