@@ -57,7 +57,7 @@ class MerchantService
      * 
      * @see https://paylinksa.readme.io/docs/authentication
      */
-    public function authentication()
+    private function authentication()
     {
         // Request body parameters
         $requestBody = [
@@ -102,7 +102,7 @@ class MerchantService
      * @param string $clientName The name of the client.
      * @param string $orderNumber A unique identifier for the invoice.
      * @param PaylinkProduct[] $products An array of PaylinkProduct objects to be included in the invoice.
-     * @param string|null $callBackUrl Call back URL that will be called by the Paylink to the merchant system. This callback URL will receive two parameters: orderNumber, and transactionNo.
+     * @param string $callBackUrl Call back URL that will be called by the Paylink to the merchant system. This callback URL will receive two parameters: orderNumber, and transactionNo.
      * @param string|null $cancelUrl Call back URL to cancel orders that will be called by the Paylink to the merchant system. This callback URL will receive two parameters: orderNumber, and transactionNo.
      * @param string|null $clientEmail The email address of the client.
      * @param string|null $currency The currency code of the invoice. The default value is SAR. (e.g., USD, EUR, GBP).
@@ -120,7 +120,7 @@ class MerchantService
         string $clientName,
         string $orderNumber,
         array $products,
-        ?string $callBackUrl = null,
+        string $callBackUrl,
         ?string $cancelUrl = null,
         ?string $clientEmail = null,
         ?string $currency = null,
@@ -255,7 +255,7 @@ class MerchantService
      * @param string $clientName The name of the client.
      * @param string $orderNumber A unique identifier for the invoice.
      * @param PaylinkProduct[] $products An array of PaylinkProduct objects to be included in the invoice.
-     * @param string|null $callBackUrl The URL will be called when the payment is complete or canceled.
+     * @param string $callBackUrl The URL will be called when the payment is complete or canceled.
      * @param string|null $clientEmail The email address of the client.
      * @param string|null $currency The currency code of the invoice. The default value is SAR. (e.g., USD, EUR, GBP).
      * @param string|null $note A note for the invoice.
@@ -279,7 +279,7 @@ class MerchantService
         string $cardSecurityCode,
         string $cardExpiryMonth,
         string $cardExpiryYear,
-        ?string $callBackUrl = null,
+        string $callBackUrl,
         ?string $cancelUrl = null,
         ?string $clientEmail = null,
         ?string $currency = null,
@@ -356,7 +356,7 @@ class MerchantService
      * @param string $customerName
      * @param string $customerMobile
      * @param string|null $customerEmail
-     * @param string|null $callbackUrl
+     * @param string $callbackUrl
      * @param string $recurringType [Custom, Daily, Weekly, Monthly] Selecting any option except "Custom" will disregard the intervalDays parameter.
      * @param float $recurringIntervalDays // [value between 1 and 180 days]
      * @param float $recurringIterations // controls the frequency of charges to the customer for your services, Setting this parameter to "0" allows indefinite billing cycles until the recurring payment is canceled
@@ -372,7 +372,7 @@ class MerchantService
         float $recurringIntervalDays,
         float $recurringIterations,
         float $recurringRetryCount,
-        ?string $callbackUrl = null,
+        string $callbackUrl,
         ?string $currencyCode = null,
         ?string $customerEmail = null,
         ?string $paymentNote = null,
