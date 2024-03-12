@@ -221,20 +221,13 @@ class MerchantController extends Controller
     }
 
     // Retrieves an invoice
-    public function getInvoice(Request $request)
+    public function getInvoice(Request $request, string $transactionNo)
     {
-        // Validate incoming request data
-        $request->validate([
-            'transactionNo' => 'required|string',
-        ]);
-
         // Create an instance of MerchantService
         $merchantService = new MerchantService();
 
         // Call Paylink to get the invoice
-        $response = $merchantService->getInvoice(
-            transactionNo: $request->input('transactionNo')
-        );
+        $response = $merchantService->getInvoice(transactionNo: $transactionNo);
 
         // Return response as JSON
         return response()->json($response->json(), $response->status());
