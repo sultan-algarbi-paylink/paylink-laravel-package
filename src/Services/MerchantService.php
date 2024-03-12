@@ -300,7 +300,7 @@ class MerchantService
 
         // Convert PaylinkProduct objects to arrays
         $productsArray = [];
-        if (empty($products)) {
+        if (!empty($products)) {
             foreach ($products as $product) {
                 if ($product instanceof PaylinkProduct) {
                     $productsArray[] = $product->toArray();
