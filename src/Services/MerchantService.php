@@ -9,14 +9,16 @@ use Paylink\Models\PaylinkProduct;
 class MerchantService
 {
     /**
-     * All payment methods are accepted by Paylink
-     * @see https://paylinksa.readme.io/docs/payment-methods
+     * Valid card brands accepted by Paylink.
+     *
+     * @see https://paylinksa.readme.io/docs/payment-methods Official Paylink documentation for payment methods.
      */
     private const VALID_CARD_BRANDS = ['mada', 'visaMastercard', 'amex', 'tabby', 'tamara', 'stcpay', 'urpay'];
 
     /**
      * Paylink Service configration
-     * @see https://paylinksa.readme.io/docs/authentication#request-body-parameters
+     *
+     * @see https://paylinksa.readme.io/docs/authentication#request-body-parameters Official Paylink API documentation for authentication.
      */
     private string $apiLink;
     private string $paymentPagePrefix;
@@ -26,12 +28,12 @@ class MerchantService
     private string $idToken;
 
     /**
-     * Based on the current environment set the configration
+     * Initializes the MerchantService with configuration based on the current environment.
      */
     public function __construct()
     {
         if (app()->environment('production')) {
-            // links
+            // Production environment settings
             $this->apiLink = 'https://restapi.paylink.sa';
             $this->paymentPagePrefix = 'https://payment.paylink.sa/pay/order';
 
@@ -40,7 +42,7 @@ class MerchantService
             $this->secretKey = config('paylink.merchant.production.secret_key');
             $this->persistToken = config('paylink.merchant.production.persist_token', false);
         } else {
-            // links
+            // Testing environment settings
             $this->apiLink = 'https://restpilot.paylink.sa';
             $this->paymentPagePrefix = 'https://paymentpilot.paylink.sa/pay/info';
 
@@ -51,14 +53,15 @@ class MerchantService
         }
     }
 
-    /** 
+    /**
      * Authenticates with the Paylink API and retrieves an authentication token.
-     * 
+     *
      * This method is the initial step in using the Paylink API. The authentication token obtained here
      * is crucial for subsequent endpoint calls, as it authenticates and authorizes the merchant's system.
      * 
-     * @see https://paylinksa.readme.io/docs/authentication Official Paylink API authentication documentation
      * @throws Exception If authentication fails or if the token is not found in the response.
+     * 
+     * @see https://paylinksa.readme.io/docs/authentication Official Paylink API authentication documentation.
      */
     private function _authentication()
     {
@@ -75,7 +78,7 @@ class MerchantService
 
             // Send a POST request to the authentication endpoint
             $response = Http::withHeaders([
-                'accept' => '*/*',
+                'accept' => 'application/json',
                 'content-type' => 'application/json',
             ])->post($endpoint, $requestBody);
 
@@ -109,19 +112,21 @@ class MerchantService
      * @param string $clientName The name of the client.
      * @param string $orderNumber A unique identifier for the invoice.
      * @param PaylinkProduct[] $products An array of PaylinkProduct objects to be included in the invoice.
-     * @param string $callBackUrl Call back URL that will be called by the Paylink to the merchant system. This callback URL will receive two parameters: orderNumber, and transactionNo.
-     * @param string|null $cancelUrl Call back URL to cancel orders that will be called by the Paylink to the merchant system. This callback URL will receive two parameters: orderNumber, and transactionNo.
+     * @param string $callBackUrl Call back URL that will be called by Paylink to the merchant system. This URL will receive two parameters: orderNumber and transactionNo.
+     * @param string|null $cancelUrl Call back URL to cancel orders that will be called by Paylink to the merchant system. This URL will receive two parameters: orderNumber and transactionNo.
      * @param string|null $clientEmail The email address of the client.
      * @param string|null $currency The currency code of the invoice. The default value is SAR. (e.g., USD, EUR, GBP).
      * @param string|null $note A note for the invoice.
      * @param string|null $smsMessage This option will enable the invoice to be sent to the client's mobile specified in clientMobile.
-     * @param array|null $supportedCardBrands List of supported card brands. This list is optional. values are: [mada, visaMastercard, amex, tabby, tamara, stcpay, urpay]
-     * @param bool|null $displayPending This option will make this invoice displayed in my.paylink.sa
+     * @param array|null $supportedCardBrands List of supported card brands. This list is optional. Supported values are: [mada, visaMastercard, amex, tabby, tamara, stcpay, urpay].
+     * @param bool|null $displayPending This option will make this invoice displayed in my.paylink.sa.
+     * 
+     * @return array Returns the details of the added invoice.
      * 
      * @throws Exception If adding the invoice fails.
+     * 
      * @see https://paylinksa.readme.io/docs/invoices Official Paylink API documentation for invoices.
      */
-
     public function addInvoice(
         float $amount,
         string $clientMobile,
@@ -138,6 +143,7 @@ class MerchantService
         ?bool $displayPending = true
     ) {
         try {
+            // Ensure authentication is done
             if (empty($this->idToken)) {
                 $this->_authentication();
             }
@@ -181,7 +187,7 @@ class MerchantService
 
             // Send a POST request to the server
             $response = Http::withHeaders([
-                'accept' => '*/*',
+                'accept' => 'application/json',
                 'content-type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->idToken,
             ])->post($endpoint, $requestBody);
@@ -189,6 +195,7 @@ class MerchantService
             // Decode the JSON response
             $orderDetails = $response->json();
 
+            // Check for request failure or empty response
             if ($response->failed() || empty($orderDetails)) {
                 $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
                 throw new Exception("Failed to add the invoice. $errorMsg");
@@ -196,32 +203,37 @@ class MerchantService
 
             return $orderDetails;
         } catch (Exception $e) {
-            throw $e;
+            throw $e; // Re-throw the exception for higher-level handling
         }
     }
 
     /**
-     * Paylink Get Orders:
-     * The merchant's application is responsible for calling this endpoint to check the payment status of the invoice using "TransactionNo." Then from the response,
-     * the merchant's application checks the invoice payment status from the field "orderStatus"
+     * Retrieves invoice details
+     *
+     * This endpoint is used by the merchant's application to get an invoice details using the "TransactionNo."
      * 
-     * @param string $transactionNo.
+     * @param string $transactionNo The transaction number of the invoice to retrieve.
+     * 
+     * @return array Returns the invoice details.
+     * 
+     * @throws Exception If authentication fails or if there's an issue with retrieving the invoice.
      * 
      * @see https://paylinksa.readme.io/docs/order-request
      */
     public function getInvoice(string $transactionNo)
     {
         try {
+            // Ensure authentication is done
             if (empty($this->idToken)) {
                 $this->_authentication();
             }
 
-            // endpoint
+            // Prepare the API endpoint
             $endpoint = $this->apiLink . '/api/getInvoice/' . $transactionNo;
 
-            // Send a POST request to the server
+            // Send a GET request to the server
             $response = Http::withHeaders([
-                'accept' => '*/*',
+                'accept' => 'application/json',
                 'content-type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->idToken,
             ])->get($endpoint);
@@ -229,6 +241,7 @@ class MerchantService
             // Decode the JSON response
             $orderDetails = $response->json();
 
+            // Check for request failure or empty response
             if ($response->failed() || empty($orderDetails)) {
                 $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
                 throw new Exception("Failed to get the invoice. $errorMsg");
@@ -236,36 +249,42 @@ class MerchantService
 
             return $orderDetails;
         } catch (Exception $e) {
-            throw $e;
+            throw $e; // Re-throw the exception for higher-level handling
         }
     }
 
     /**
-     * Paylink Cancel Orders:
-     * enables the cancellation of an existing transaction initiated by a merchant using the Paylink payment gateway.
+     * Cancels an existing invoice.
+     *
+     * This method enables the cancellation of an existing transaction initiated by a merchant using the Paylink payment gateway.
      * 
-     * @param string $transactionNo.
+     * @param string $transactionNo The transaction number to be canceled.
+     * 
+     * @return void
+     * 
+     * @throws Exception If authentication fails or if there's an issue with canceling the invoice.
      * 
      * @see https://paylinksa.readme.io/docs/cancel-invoice
      */
     public function cancelInvoice(string $transactionNo)
     {
         try {
+            // Ensure authentication is done
             if (empty($this->idToken)) {
                 $this->_authentication();
             }
 
-            // endpoint
+            // Prepare the API endpoint
             $endpoint = $this->apiLink . '/api/cancelInvoice';
 
-            // Request body parameters
+            // Construct the request body
             $requestBody = [
                 'transactionNo' => $transactionNo,
             ];
 
             // Send a POST request to the server
             $response = Http::withHeaders([
-                'accept' => '*/*',
+                'accept' => 'application/json',
                 'content-type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->idToken,
             ])->post($endpoint, $requestBody);
@@ -273,41 +292,46 @@ class MerchantService
             // Decode the JSON response
             $responseData = $response->json();
 
+            // Check for request failure or empty response
             if ($response->failed() || empty($responseData) || empty($responseData['success']) || $responseData['success'] != 'true') {
                 $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
                 throw new Exception("Failed to cancel the invoice. $errorMsg");
             }
         } catch (Exception $e) {
-            throw $e;
+            throw $e; // Re-throw the exception for higher-level handling
         }
     }
 
     /** --------------------------------------------- Extra Functions --------------------------------------------- */
 
     /**
-     * Pay Invoices (Direct Integration):
-     *          This specific endpoint is designed for merchants,
-     *          enabling them to create invoices and accept online payments through the Paylink gateway.
-     *          The integration process facilitates the collection of card information directly from customers.
-     *          This information is then utilized for processing payments on your webpage.
-     *          Notably, this method provides immediate results regarding the payment status, eliminating the need for webpage redirections.
+     * Process payment for invoices using direct integration with Paylink, including card information.
      *
+     * This endpoint is designed for merchants to create invoices and accept online payments through the Paylink gateway.
+     * The integration process collects card information directly from customers for payment processing on your webpage.
+     * Immediate payment status results are provided without webpage redirections.
+     * 
      * @param float $amount The total amount of the invoice. NOTE: Buyer will pay this amount regardless of the total amounts of the products' prices.
      * @param string $clientMobile The mobile number of the client.
      * @param string $clientName The name of the client.
      * @param string $orderNumber A unique identifier for the invoice.
      * @param PaylinkProduct[] $products An array of PaylinkProduct objects to be included in the invoice.
-     * @param string $callBackUrl The URL will be called when the payment is complete or canceled.
+     * @param string $cardNumber The card number for payment.
+     * @param string $cardSecurityCode The security code (CVV) for the card.
+     * @param string $cardExpiryMonth The expiry month of the card (MM format).
+     * @param string $cardExpiryYear The expiry year of the card (YY format).
+     * @param string $callBackUrl The URL called when payment is complete or canceled.
+     * @param string|null $cancelUrl The URL for canceling the payment.
      * @param string|null $clientEmail The email address of the client.
-     * @param string|null $currency The currency code of the invoice. The default value is SAR. (e.g., USD, EUR, GBP).
+     * @param string|null $currency The currency code of the invoice.
      * @param string|null $note A note for the invoice.
-     * @param string|null $smsMessage This option will enable the invoice to be sent to the client's mobile specified in clientMobile.
-     * @param array|null $supportedCardBrands List of supported card brands. This list is optional. values are: [mada, visaMastercard, amex, tabby, tamara, stcpay, urpay]
-     * @param bool|null $displayPending This option will make this invoice displayed in my.paylink.sa
-     * @param string $cardNumber a sequence of digits unique to each card. In this case, the number provided is "4111111111111111", which is a commonly used placeholder in payment processing examples.
-     * @param string $cardSecurityCode known as the CVV (Card Verification Value), this is a security feature for card-not-present transactions. Here, it is given as "446".
-     * @param string $cardExpiryMonth should be Double digit month, including leading zero (MM format), example "04"
-     * @param string $cardExpiryYear should be two digit year (yy format), example "24"
+     * @param string|null $smsMessage An SMS message for the client.
+     * @param array|null $supportedCardBrands List of supported card brands, values are: [mada, visaMastercard, amex, tabby, tamara, stcpay, urpay]
+     * @param bool|null $displayPending Option to display the invoice in my.paylink.sa.
+     * 
+     * @return array|null Returns the response data from the server or null if the request fails.
+     * 
+     * @throws Exception If authentication fails or if there's an issue with processing the payment.
      * 
      * @see https://paylinksa.readme.io/docs/add-invoices-direct
      */
@@ -330,8 +354,8 @@ class MerchantService
         ?array $supportedCardBrands = [],
         ?bool $displayPending = true,
     ) {
-
         try {
+            // Ensure authentication is done
             if (empty($this->idToken)) {
                 $this->_authentication();
             }
@@ -351,10 +375,10 @@ class MerchantService
                 }
             }
 
-            // endpoint
+            // Prepare the API endpoint
             $endpoint = $this->apiLink . '/api/payInvoice';
 
-            // Request body parameters
+            // Construct the request body
             $requestBody = [
                 'amount' => $amount,
                 'callBackUrl' => $callBackUrl,
@@ -381,7 +405,7 @@ class MerchantService
 
             // Send a POST request to the server
             $response = Http::withHeaders([
-                'accept' => '*/*',
+                'accept' => 'application/json',
                 'content-type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->idToken,
             ])->post($endpoint, $requestBody);
@@ -389,6 +413,7 @@ class MerchantService
             // Decode the JSON response
             $responseData = $response->json();
 
+            // Check for request failure or empty response
             if ($response->failed() || empty($responseData)) {
                 $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
                 throw new Exception("Failed to process the payment for this direct invoice. $errorMsg");
@@ -396,26 +421,31 @@ class MerchantService
 
             return $responseData;
         } catch (Exception $e) {
-            throw $e;
+            throw $e; // Re-throw the exception for higher-level handling
         }
     }
 
     /**
      * Recurring Payment to the system:
-     * enabling you to initiate or cancel recurring payments and to view all active regular payments
      *
-     * @param float $paymentValue
-     * @param string|null $currencyCode
-     * @param string|null $paymentNote
-     * @param string $customerName
-     * @param string $customerMobile
-     * @param string|null $customerEmail
-     * @param string $callbackUrl
-     * @param string $recurringType [Custom, Daily, Weekly, Monthly] Selecting any option except "Custom" will disregard the intervalDays parameter.
-     * @param float $recurringIntervalDays // [value between 1 and 180 days]
-     * @param float $recurringIterations // controls the frequency of charges to the customer for your services, Setting this parameter to "0" allows indefinite billing cycles until the recurring payment is canceled
-     * @param float $recurringRetryCount // [between 0 to 5] determine how many attempts should be made to process a failed recurring payment before terminating the subscription
+     * Enables you to initiate recurring payments and view all active regular payments in the system.
      *
+     * @param float $paymentValue The amount of the payment.
+     * @param string|null $currencyCode The currency code (e.g., USD, EUR).
+     * @param string|null $paymentNote Additional notes or information about the payment.
+     * @param string $customerName The name of the customer.
+     * @param string $customerMobile The mobile number of the customer.
+     * @param string|null $customerEmail The email address of the customer.
+     * @param string $callbackUrl The URL to which payment notifications/callbacks will be sent.
+     * @param string $recurringType The type of recurring payment (Custom, Daily, Weekly, Monthly).
+     * @param float $recurringIntervalDays The interval in days for recurring payments (valid for Custom type).
+     * @param float $recurringIterations The number of iterations for the recurring payment (0 for indefinite billing cycles).
+     * @param float $recurringRetryCount The number of retry attempts for failed recurring payments (0 to 5).
+     * 
+     * @return array|null Returns the response data from the server or null if the request fails.
+     * 
+     * @throws Exception If authentication fails or if there's an issue with adding the recurring payment.
+     * 
      * @see https://paylinksa.readme.io/docs/recurring-payment
      */
     public function recurringPayment(
@@ -432,14 +462,15 @@ class MerchantService
         ?string $paymentNote = null,
     ) {
         try {
+            // Ensure authentication is done
             if (empty($this->idToken)) {
                 $this->_authentication();
             }
 
-            // endpoint
+            // Prepare the API endpoint
             $endpoint = $this->apiLink . '/api/registerPayment';
 
-            // Request body parameters
+            // Construct the request body
             $requestBody = [
                 "payment" => [
                     "value" => $paymentValue,
@@ -464,7 +495,7 @@ class MerchantService
 
             // Send a POST request to the server
             $response = Http::withHeaders([
-                'accept' => '*/*',
+                'accept' => 'application/json',
                 'content-type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->idToken,
             ])->post($endpoint, $requestBody);
@@ -472,6 +503,7 @@ class MerchantService
             // Decode the JSON response
             $responseData = $response->json();
 
+            // Check for request failure or empty response
             if ($response->failed() || empty($responseData)) {
                 $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
                 throw new Exception("Failed to add this recurring payment. $errorMsg");
@@ -479,12 +511,13 @@ class MerchantService
 
             return $responseData;
         } catch (Exception $e) {
-            throw $e;
+            throw $e; // Re-throw the exception for higher-level handling
         }
     }
 
     /**
      * Sending digital product information:
+     * 
      * First, they must send the digital product information
      * to the customer through Paylink after the customer pays the order.
      * 
@@ -493,19 +526,24 @@ class MerchantService
      * @param string $message The digital product data such as file location in dropbox, card charge number, username and password for an account.
      * @param string $orderNumber Order number of the paid order.
      * 
+     * @return array|null Returns the response data from the server or null if the request fails.
+     * 
+     * @throws Exception If authentication fails or if there's an issue with processing the payment.
+     * 
      * @see https://paylinksa.readme.io/reference/sendproductinfotopayerusingpost
      */
     public function sendDigitalProduct(string $message, string $orderNumber)
     {
         try {
+            // Ensure authentication is done
             if (empty($this->idToken)) {
                 $this->_authentication();
             }
 
-            // endpoint
+            // Prepare the API endpoint
             $endpoint = $this->apiLink . '/api/sendDigitalProduct';
 
-            // Request body parameters
+            // Construct the request body
             $requestBody = [
                 'message' => $message,
                 'orderNumber' => $orderNumber,
@@ -513,7 +551,7 @@ class MerchantService
 
             // Send a POST request to the server
             $response = Http::withHeaders([
-                'accept' => '*/*',
+                'accept' => 'application/json',
                 'content-type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->idToken,
             ])->post($endpoint, $requestBody);
@@ -521,6 +559,7 @@ class MerchantService
             // Decode the JSON response
             $responseData = $response->json();
 
+            // Check for request failure or empty response
             if ($response->failed() || empty($responseData)) {
                 $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
                 throw new Exception("Failed to process the payment for this direct invoice. $errorMsg");
@@ -528,7 +567,7 @@ class MerchantService
 
             return $responseData;
         } catch (Exception $e) {
-            throw $e;
+            throw $e; // Re-throw the exception for higher-level handling
         }
     }
 

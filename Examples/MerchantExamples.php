@@ -11,7 +11,6 @@ use Paylink\Models\PaylinkProduct;
 
 class MerchantController extends Controller
 {
-
     /** -------------------------------- Invoice Operations -------------------------------- */
     // Adds a new invoice
     public function addInvoice()
@@ -90,7 +89,7 @@ class MerchantController extends Controller
                 transactionNo: '1714289084591'
             );
 
-            // -- if there is no error exception, the invoice was cnacelled successflly
+            // -- If no error exception is thrown, the invoice was canceled successfully
         } catch (Exception $e) {
             // -- Handle the error
         }

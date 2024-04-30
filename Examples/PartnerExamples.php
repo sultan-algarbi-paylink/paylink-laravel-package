@@ -35,7 +35,7 @@ class PartnerController extends Controller
         }
     }
 
-    // Second step: Validates mobile number for partner registration
+    // Second step: Validates the mobile number for partner registration
     public function validateMobile()
     {
         try {
