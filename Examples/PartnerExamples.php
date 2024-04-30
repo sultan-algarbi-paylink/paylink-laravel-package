@@ -3,206 +3,167 @@
 namespace Paylink\Examples;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use Exception;
 
 // Import Paylink Package
 use Paylink\Services\PartnerService;
 
 class PartnerController extends Controller
 {
-    // Retrieves merchants associated with the partner
-    public function getMyMerchants(Request $request)
-    {
-        // Create an instance of PartnerService
-        $partnerService = new PartnerService();
-
-        // Call Paylink to retrieve merchants
-        $response = $partnerService->getMyMerchants();
-
-        // Return response as JSON
-        return response()->json($response->json(), $response->status());
-    }
-
-    // Retrieves merchant keys based on search criteria
-    public function getMerchantKeys(Request $request)
-    {
-        // Validate the incoming request data
-        $request->validate([
-            'searchType' => 'required|string|in:cr,freelancer,mobile,email,accountNo',
-            'searchValue' => 'required|string',
-            'profileNo' => 'required|string',
-        ]);
-
-        // Create an instance of PartnerService
-        $partnerService = new PartnerService();
-
-        // Call Paylink to retrieve merchant keys
-        $response = $partnerService->getMerchantKeys(
-            searchType: $request->input('searchType'), // cr, freelancer, mobile, email, accountNo
-            searchValue: $request->input('searchValue'),
-            profileNo: $request->input('profileNo'),
-        );
-
-        // Return response as JSON
-        return response()->json($response->json(), $response->status());
-    }
-
-    // Archives a merchant
-    public function archiveMerchant(Request $request)
-    {
-        // Validate the incoming request data
-        $request->validate([
-            'key' => 'required|string',
-            'keyType' => 'required|string|in:cr,freelancer,mobile,email,accountNo',
-            'partnerProfileNo' => 'required|string',
-        ]);
-
-        // Create an instance of PartnerService
-        $partnerService = new PartnerService();
-
-        // Call Paylink to archive a merchant
-        $response = $partnerService->archiveMerchant(
-            key: $request->input('key'),
-            keyType: $request->input('keyType'), // cr, freelancer, mobile, email, accountNo
-            partnerProfileNo: $request->input('partnerProfileNo'),
-        );
-
-        // Return response as JSON
-        return response()->json($response->json(), $response->status());
-    }
-
     /** -------------------------------- Partner Registration -------------------------------- */
     // First step: Checks license for partner registration
-    public function checkLicense(Request $request)
+    public function checkLicense()
     {
-        // Validate the incoming request data
-        $request->validate([
-            'registrationType' => 'required|string|in:freelancer,cr',
-            'licenseNumber' => 'required|string',
-            'mobileNumber' => 'required|string',
-            'hijriYear' => 'required|string',
-            'hijriMonth' => 'required|string',
-            'hijriDay' => 'required|string',
-            'partnerProfileNo' => 'required|string',
-        ]);
+        try {
+            // Create an instance of PartnerService
+            $partnerService = new PartnerService();
 
-        // Create an instance of PartnerService
-        $partnerService = new PartnerService();
+            // Call Paylink to check license
+            $responseData = $partnerService->checkLicense(
+                registrationType: "cr", // freelancer or cr
+                licenseNumber: "7014832310",
+                mobileNumber: "0512345678",
+                hijriYear: "1400",
+                hijriMonth: "06",
+                hijriDay: "16",
+                partnerProfileNo: "07537924"
+            );
 
-        // Call Paylink to check license
-        $response = $partnerService->checkLicense(
-            registrationType: $request->input('registrationType'), // freelancer or cr
-            licenseNumber: $request->input('licenseNumber'),
-            mobileNumber: $request->input('mobileNumber'),
-            hijriYear: $request->input('hijriYear'),
-            hijriMonth: $request->input('hijriMonth'),
-            hijriDay: $request->input('hijriDay'),
-            partnerProfileNo: $request->input('partnerProfileNo'),
-        );
-
-        // Return response as JSON
-        return response()->json($response->json(), $response->status());
+            // -- Use the responseData based on your need
+        } catch (Exception $e) {
+            // -- Handle the error
+        }
     }
 
     // Second step: Validates mobile number for partner registration
-    public function validateMobile(Request $request)
+    public function validateMobile()
     {
-        // Validate the incoming request data
-        $request->validate([
-            'signature' => 'required|string',
-            'sessionUuid' => 'required|string',
-            'mobile' => 'required|string',
-            'otp' => 'required|string',
-            'partnerProfileNo' => 'required|string',
-        ]);
+        try {
+            // Create an instance of PartnerService
+            $partnerService = new PartnerService();
 
-        // Create an instance of PartnerService
-        $partnerService = new PartnerService();
+            // Call Paylink to validate mobile number
+            $responseData = $partnerService->validateMobile(
+                signature: "ae135f2506dc3c44152d62265419c09e80dec0b108090bc81d6a1a691c3f0647",
+                mobile: "0512345678",
+                sessionUuid: "96ea8e22-edef-414b-9724-3bd2d494b710",
+                otp: "7615",
+                partnerProfileNo: "19039481"
+            );
 
-        // Call Paylink to validate mobile number
-        $response = $partnerService->validateMobile(
-            signature: $request->input('signature'),
-            sessionUuid: $request->input('sessionUuid'),
-            mobile: $request->input('mobile'),
-            otp: $request->input('otp'),
-            partnerProfileNo: $request->input('partnerProfileNo'),
-        );
-
-        // Return response as JSON
-        return response()->json($response->json(), $response->status());
+            // -- Use the responseData based on your need
+        } catch (Exception $e) {
+            // -- Handle the error
+        }
     }
 
     // Third step: Adds additional information for partner registration
-    public function addInfo(Request $request)
+    public function addInfo()
     {
-        // Validate the incoming request data
-        $request->validate([
-            'signature' => 'required|string',
-            'sessionUuid' => 'required|string',
-            'mobile' => 'required|string',
-            'partnerProfileNo' => 'required|string',
-            'iban' => 'nullable|string',
-            'bankName' => 'nullable|string',
-            'categoryDescription' => 'nullable|string',
-            'salesVolume' => 'nullable|numeric',
-            'sellingScope' => 'nullable|string|in:global,domestic',
-            'nationalId' => 'nullable|string',
-            'licenseName' => 'nullable|string',
-            'Email' => 'nullable|email',
-            'firstName' => 'nullable|string',
-            'lastName' => 'nullable|string',
-            'password' => 'nullable|string',
-        ]);
+        try {
+            // Create an instance of PartnerService
+            $partnerService = new PartnerService();
 
-        // Create an instance of PartnerService
-        $partnerService = new PartnerService();
+            // Call Paylink to add additional information
+            $responseData = $partnerService->addInfo(
+                mobile: "0500000001",
+                sessionUuid: "96ea8e22-edef-414b-9724-3bd2d494b710",
+                signature: "ae135f2506dc3c44152d62265419c09e80dec0b108090bc81d6a1a691c3f0647",
+                partnerProfileNo: "19039481",
+                iban: "SA1231231231312312313213",
+                bankName: "AlRajhi Bank",
+                categoryDescription: "Any description for the activity of the merchant. It must match the activity of the merchant.",
+                salesVolume: "below_10000",
+                sellingScope: "domestic",
+                nationalId: "1006170383",
+                licenseName: '21012451525',
+                email: "mohammed@test.com",
+                firstName: "Mohammed",
+                lastName: "Ali",
+                password: "xxxxxxxxxxx",
+            );
 
-        // Call Paylink to add additional information
-        $response = $partnerService->addInfo(
-            signature: $request->input('signature'),
-            sessionUuid: $request->input('sessionUuid'),
-            mobile: $request->input('mobile'),
-            partnerProfileNo: $request->input('partnerProfileNo'),
-            iban: $request->input('iban'),
-            bankName: $request->input('bankName'),
-            categoryDescription: $request->input('categoryDescription'),
-            salesVolume: $request->input('salesVolume'),
-            sellingScope: $request->input('sellingScope'), // global or domestic
-            nationalId: $request->input('nationalId'),
-            licenseName: $request->input('licenseName'),
-            Email: $request->input('Email'),
-            firstName: $request->input('firstName'),
-            lastName: $request->input('lastName'),
-            password: $request->input('password'),
-        );
-
-        // Return response as JSON
-        return response()->json($response->json(), $response->status());
+            // -- Use the responseData based on your need
+        } catch (Exception $e) {
+            // -- Handle the error
+        }
     }
 
     // Fourth step: Confirms partner registration with Nafath
-    public function confirmingWithNafath(Request $request)
+    public function confirmingWithNafath()
     {
-        // Validate the incoming request data
-        $request->validate([
-            'signature' => 'required|string',
-            'sessionUuid' => 'required|string',
-            'mobile' => 'required|string',
-            'partnerProfileNo' => 'required|string',
-        ]);
+        try {
+            // Create an instance of PartnerService
+            $partnerService = new PartnerService();
 
-        // Create an instance of PartnerService
-        $partnerService = new PartnerService();
+            // Call Paylink to confirm partner registration with Nafath
+            $responseData = $partnerService->confirmingWithNafath(
+                signature: 'ae135f2506dc3c44152d62265419c09e80dec0b108090bc81d6a1a691c3f0647',
+                sessionUuid: '96ea8e22-edef-414b-9724-3bd2d494b710',
+                mobile: '0512345678',
+                partnerProfileNo: '19039481',
+            );
 
-        // Call Paylink to confirm partner registration with Nafath
-        $response = $partnerService->confirmingWithNafath(
-            signature: $request->input('signature'),
-            sessionUuid: $request->input('sessionUuid'),
-            mobile: $request->input('mobile'),
-            partnerProfileNo: $request->input('partnerProfileNo'),
-        );
+            // -- Use the responseData based on your need
+        } catch (Exception $e) {
+            // -- Handle the error
+        }
+    }
 
-        // Return response as JSON
-        return response()->json($response->json(), $response->status());
+    /** -------------------------------- Extra Functions -------------------------------- */
+    // Retrieves merchants associated with the partner
+    public function getMyMerchants()
+    {
+        try {
+            // Create an instance of PartnerService
+            $partnerService = new PartnerService();
+
+            // Call Paylink to retrieve merchants
+            $responseData = $partnerService->getMyMerchants();
+
+            // -- Use the responseData based on your need
+        } catch (Exception $e) {
+            // -- Handle the error
+        }
+    }
+
+    // Retrieves merchant keys based on search criteria
+    public function getMerchantKeys()
+    {
+        try {
+            // Create an instance of PartnerService
+            $partnerService = new PartnerService();
+
+            // Call Paylink to retrieve merchant keys
+            $responseData = $partnerService->getMerchantKeys(
+                searchType: 'cr', // cr, freelancer, mobile, email, accountNo
+                searchValue: '20139202930',
+                profileNo: '12345687',
+            );
+
+            // -- Use the responseData based on your need
+        } catch (Exception $e) {
+            // -- Handle the error
+        }
+    }
+
+    // Archives a merchant
+    public function archiveMerchant()
+    {
+        try {
+            // Create an instance of PartnerService
+            $partnerService = new PartnerService();
+
+            // Call Paylink to archive a merchant
+            $responseData = $partnerService->archiveMerchant(
+                keyType: 'freelancer', // cr, freelancer, mobile, email, accountNo
+                keyValue: '20139202930',
+                partnerProfileNo: '1235478',
+            );
+
+            // -- Use the responseData based on your need
+        } catch (Exception $e) {
+            // -- Handle the error
+        }
     }
 }

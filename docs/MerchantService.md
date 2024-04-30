@@ -22,7 +22,7 @@ The `MerchantService` class provides methods to interact with the Paylink API fo
    - **Purpose:** Cancels an existing invoice initiated by the merchant.
    - **Endpoint Reference:** [Cancel Invoice](https://paylinksa.readme.io/docs/cancel-invoice)
 
-#### Payment Processing
+#### Extra Functions
 
 1. **Process Payment with Card Information**
 
@@ -30,17 +30,13 @@ The `MerchantService` class provides methods to interact with the Paylink API fo
    - **Purpose:** Processes a payment using card information provided by the customer.
    - **Endpoint Reference:** [Process Payment with Card Information](https://paylinksa.readme.io/docs/add-invoices-direct)
 
-#### Recurring Payments
-
-1. **Recurring Payment**
+2. **Recurring Payment**
 
    - **Method:** `recurringPayment(...)`
    - **Purpose:** Initiates recurring payments for regular transactions.
    - **Endpoint Reference:** [Recurring Payment](https://paylinksa.readme.io/docs/recurring-payment)
 
-#### Digital Product Operations
-
-1. **Send Digital Product**
+3. **Send Digital Product**
 
    - **Method:** `sendDigitalProduct(string $message, string $orderNumber)`
    - **Purpose:** Sends digital product information to the buyer after payment completion.

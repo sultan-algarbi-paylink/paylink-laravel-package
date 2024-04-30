@@ -1,5 +1,7 @@
 <?php
 
+// TODO: Add try-catch for each function
+
 namespace Paylink\Services;
 
 use Illuminate\Support\Facades\Http;
@@ -165,8 +167,8 @@ class PartnerService
      * @see https://paylinksa.readme.io/docs/paylink-merchant-archive-api
      */
     public function archiveMerchant(
-        string $key,
         string $keyType,
+        string $keyValue,
         string $partnerProfileNo,
     ) {
         if (app()->environment('local') || app()->environment('testing')) {
@@ -176,8 +178,8 @@ class PartnerService
 
             // Request body parameters
             $requestBody = [
-                'key' => $key,
                 'keyType' => $keyType,
+                'key' => $keyValue,
             ];
 
             // endpoint
@@ -330,7 +332,7 @@ class PartnerService
         string $sellingScope,
         string $nationalId,
         string $licenseName,
-        string $Email,
+        string $email,
         string $firstName,
         string $lastName,
         string $password,
@@ -352,7 +354,7 @@ class PartnerService
             'sellingScope' => $sellingScope,
             'nationalId' => $nationalId,
             'licenseName' => $licenseName,
-            'Email' => $Email,
+            'email' => $email,
             'firstName' => $firstName,
             'lastName' => $lastName,
             'password' => $password,

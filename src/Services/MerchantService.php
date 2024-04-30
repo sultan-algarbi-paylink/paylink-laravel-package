@@ -2,6 +2,7 @@
 
 namespace Paylink\Services;
 
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Paylink\Models\PaylinkProduct;
 
@@ -51,52 +52,58 @@ class MerchantService
     }
 
     /** 
+     * Authenticates with the Paylink API and retrieves an authentication token.
      * 
-     * The first step when using Paylink API is authenticating and getting a token.
-     * The merchant's system will use this token for every endpoint call to authenticate and authorize the merchant's system.
+     * This method is the initial step in using the Paylink API. The authentication token obtained here
+     * is crucial for subsequent endpoint calls, as it authenticates and authorizes the merchant's system.
      * 
-     * @see https://paylinksa.readme.io/docs/authentication
+     * @see https://paylinksa.readme.io/docs/authentication Official Paylink API authentication documentation
+     * @throws Exception If authentication fails or if the token is not found in the response.
      */
-    private function authentication()
+    private function _authentication()
     {
-        // Request body parameters
-        $requestBody = [
-            'apiId' => $this->appId,
-            'secretKey' => $this->secretKey,
-            'persistToken' => $this->persistToken
-        ];
+        try {
+            // Prepare the request body with necessary parameters
+            $requestBody = [
+                'apiId' => $this->appId,
+                'secretKey' => $this->secretKey,
+                'persistToken' => $this->persistToken
+            ];
 
-        // endpoint
-        $endpoint = $this->apiLink . '/api/auth';
+            // Construct the authentication endpoint URL
+            $endpoint = $this->apiLink . '/api/auth';
 
-        // Send a POST request to the server
-        $response = Http::withHeaders([
-            'accept' => '*/*',
-            'content-type' => 'application/json',
-        ])->post($endpoint, $requestBody);
+            // Send a POST request to the authentication endpoint
+            $response = Http::withHeaders([
+                'accept' => '*/*',
+                'content-type' => 'application/json',
+            ])->post($endpoint, $requestBody);
 
-        return $response;
-    }
-
-    private function _setIdToken()
-    {
-        $response = $this->authentication();
-        if ($response->successful()) {
             // Decode the JSON response
             $responseData = $response->json();
 
-            // Extract the token from the response
+            // Check if the request failed or succeeded
+            if ($response->failed() || empty($responseData) || empty($responseData['id_token'])) {
+                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
+                throw new Exception("Failed to authenticate. $errorMsg");
+            }
+
+            // Set the authentication token for future API calls
             $this->idToken = $responseData['id_token'];
-        } else {
+        } catch (Exception $e) {
+            // Reset the authentication token on error
             $this->idToken = null;
+            throw $e;
         }
     }
 
+    /** --------------------------------------------- Invoice Operations --------------------------------------------- */
+
     /**
-     * Add invoice to the system:
-     * allows merchants to generate invoices and receive payments online through the Paylink gateway.
-     * The merchant will send the payment URL to the customer through different channels or redirect them to the Paylink payment page.
+     * Adds an invoice to the Paylink system.
      *
+     * This method enables merchants to generate invoices and receive payments online through the Paylink gateway.
+     * 
      * @param float $amount The total amount of the invoice. NOTE: Buyer will pay this amount regardless of the total amounts of the products' prices.
      * @param string $clientMobile The mobile number of the client.
      * @param string $clientName The name of the client.
@@ -111,7 +118,8 @@ class MerchantService
      * @param array|null $supportedCardBrands List of supported card brands. This list is optional. values are: [mada, visaMastercard, amex, tabby, tamara, stcpay, urpay]
      * @param bool|null $displayPending This option will make this invoice displayed in my.paylink.sa
      * 
-     * @see https://paylinksa.readme.io/docs/invoices
+     * @throws Exception If adding the invoice fails.
+     * @see https://paylinksa.readme.io/docs/invoices Official Paylink API documentation for invoices.
      */
 
     public function addInvoice(
@@ -129,63 +137,73 @@ class MerchantService
         ?array $supportedCardBrands = [],
         ?bool $displayPending = true
     ) {
+        try {
+            if (empty($this->idToken)) {
+                $this->_authentication();
+            }
 
-        if (empty($this->idToken)) {
-            $this->_setIdToken();
-        }
+            // Filter and sanitize supportedCardBrands
+            $filteredCardBrands = array_filter($supportedCardBrands, function ($brand) {
+                return is_string($brand) && in_array($brand, self::VALID_CARD_BRANDS);
+            });
 
-        // Filter and sanitize supportedCardBrands
-        $filteredCardBrands = array_filter($supportedCardBrands, function ($brand) {
-            return is_string($brand) && in_array($brand, self::VALID_CARD_BRANDS);
-        });
-
-
-        // Convert PaylinkProduct objects to arrays
-        $productsArray = [];
-        if (!empty($products)) {
-            foreach ($products as $index => $product) {
-                if ($product instanceof PaylinkProduct) {
-                    $productsArray[] = $product->toArray();
-                } else {
-                    throw new \InvalidArgumentException("Invalid product type at index $index");
+            // Convert PaylinkProduct objects to arrays
+            $productsArray = [];
+            if (!empty($products)) {
+                foreach ($products as $index => $product) {
+                    if ($product instanceof PaylinkProduct) {
+                        $productsArray[] = $product->toArray();
+                    } else {
+                        throw new \InvalidArgumentException("Invalid product type at index $index");
+                    }
                 }
             }
+
+            // Construct the endpoint URL
+            $endpoint = $this->apiLink . '/api/addInvoice';
+
+            // Request body parameters
+            $requestBody = [
+                'amount' => $amount,
+                'callBackUrl' => $callBackUrl,
+                'cancelUrl' => $cancelUrl,
+                'clientEmail' => $clientEmail,
+                'clientMobile' => $clientMobile,
+                'currency' => $currency,
+                'clientName' => $clientName,
+                'note' => $note,
+                'orderNumber' => $orderNumber,
+                'products' => $productsArray,
+                'smsMessage' => $smsMessage,
+                'supportedCardBrands' => $filteredCardBrands,
+                'displayPending' => $displayPending,
+            ];
+
+            // Send a POST request to the server
+            $response = Http::withHeaders([
+                'accept' => '*/*',
+                'content-type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->idToken,
+            ])->post($endpoint, $requestBody);
+
+            // Decode the JSON response
+            $orderDetails = $response->json();
+
+            if ($response->failed() || empty($orderDetails)) {
+                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
+                throw new Exception("Failed to add the invoice. $errorMsg");
+            }
+
+            return $orderDetails;
+        } catch (Exception $e) {
+            throw $e;
         }
-
-        // endpoint
-        $endpoint = $this->apiLink . '/api/addInvoice';
-
-        // Request body parameters
-        $requestBody = [
-            'amount' => $amount,
-            'callBackUrl' => $callBackUrl,
-            'cancelUrl' => $cancelUrl,
-            'clientEmail' => $clientEmail,
-            'clientMobile' => $clientMobile,
-            'currency' => $currency,
-            'clientName' => $clientName,
-            'note' => $note,
-            'orderNumber' => $orderNumber,
-            'products' => $productsArray,
-            'smsMessage' => $smsMessage,
-            'supportedCardBrands' => $filteredCardBrands,
-            'displayPending' => $displayPending,
-        ];
-
-        // Send a POST request to the server
-        $response = Http::withHeaders([
-            'accept' => '*/*',
-            'content-type' => 'application/json',
-            'Authorization' => 'Bearer ' . $this->idToken,
-        ])->post($endpoint, $requestBody);
-
-        return $response;
     }
 
     /**
      * Paylink Get Orders:
      * The merchant's application is responsible for calling this endpoint to check the payment status of the invoice using "TransactionNo." Then from the response,
-     * the merchant's application checks the invoice payment status from the field "orderStatus."
+     * the merchant's application checks the invoice payment status from the field "orderStatus"
      * 
      * @param string $transactionNo.
      * 
@@ -193,21 +211,33 @@ class MerchantService
      */
     public function getInvoice(string $transactionNo)
     {
-        if (empty($this->idToken)) {
-            $this->_setIdToken();
+        try {
+            if (empty($this->idToken)) {
+                $this->_authentication();
+            }
+
+            // endpoint
+            $endpoint = $this->apiLink . '/api/getInvoice/' . $transactionNo;
+
+            // Send a POST request to the server
+            $response = Http::withHeaders([
+                'accept' => '*/*',
+                'content-type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->idToken,
+            ])->get($endpoint);
+
+            // Decode the JSON response
+            $orderDetails = $response->json();
+
+            if ($response->failed() || empty($orderDetails)) {
+                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
+                throw new Exception("Failed to get the invoice. $errorMsg");
+            }
+
+            return $orderDetails;
+        } catch (Exception $e) {
+            throw $e;
         }
-
-        // endpoint
-        $endpoint = $this->apiLink . '/api/getInvoice/' . $transactionNo;
-
-        // Send a POST request to the server
-        $response = Http::withHeaders([
-            'accept' => '*/*',
-            'content-type' => 'application/json',
-            'Authorization' => 'Bearer ' . $this->idToken,
-        ])->get($endpoint);
-
-        return $response;
     }
 
     /**
@@ -220,27 +250,39 @@ class MerchantService
      */
     public function cancelInvoice(string $transactionNo)
     {
-        if (empty($this->idToken)) {
-            $this->_setIdToken();
+        try {
+            if (empty($this->idToken)) {
+                $this->_authentication();
+            }
+
+            // endpoint
+            $endpoint = $this->apiLink . '/api/cancelInvoice';
+
+            // Request body parameters
+            $requestBody = [
+                'transactionNo' => $transactionNo,
+            ];
+
+            // Send a POST request to the server
+            $response = Http::withHeaders([
+                'accept' => '*/*',
+                'content-type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->idToken,
+            ])->post($endpoint, $requestBody);
+
+            // Decode the JSON response
+            $responseData = $response->json();
+
+            if ($response->failed() || empty($responseData) || empty($responseData['success']) || $responseData['success'] != 'true') {
+                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
+                throw new Exception("Failed to cancel the invoice. $errorMsg");
+            }
+        } catch (Exception $e) {
+            throw $e;
         }
-
-        // endpoint
-        $endpoint = $this->apiLink . '/api/cancelInvoice';
-
-        // Request body parameters
-        $requestBody = [
-            'transactionNo' => $transactionNo,
-        ];
-
-        // Send a POST request to the server
-        $response = Http::withHeaders([
-            'accept' => '*/*',
-            'content-type' => 'application/json',
-            'Authorization' => 'Bearer ' . $this->idToken,
-        ])->post($endpoint, $requestBody);
-
-        return $response;
     }
+
+    /** --------------------------------------------- Extra Functions --------------------------------------------- */
 
     /**
      * Pay Invoices (Direct Integration):
@@ -289,61 +331,73 @@ class MerchantService
         ?bool $displayPending = true,
     ) {
 
-        if (empty($this->idToken)) {
-            $this->_setIdToken();
-        }
+        try {
+            if (empty($this->idToken)) {
+                $this->_authentication();
+            }
 
-        // Filter and sanitize supportedCardBrands
-        $filteredCardBrands = array_filter($supportedCardBrands, function ($brand) {
-            return is_string($brand) && in_array($brand, self::VALID_CARD_BRANDS);
-        });
+            // Filter and sanitize supportedCardBrands
+            $filteredCardBrands = array_filter($supportedCardBrands, function ($brand) {
+                return is_string($brand) && in_array($brand, self::VALID_CARD_BRANDS);
+            });
 
-        // Convert PaylinkProduct objects to arrays
-        $productsArray = [];
-        if (!empty($products)) {
-            foreach ($products as $product) {
-                if ($product instanceof PaylinkProduct) {
-                    $productsArray[] = $product->toArray();
+            // Convert PaylinkProduct objects to arrays
+            $productsArray = [];
+            if (!empty($products)) {
+                foreach ($products as $product) {
+                    if ($product instanceof PaylinkProduct) {
+                        $productsArray[] = $product->toArray();
+                    }
                 }
             }
+
+            // endpoint
+            $endpoint = $this->apiLink . '/api/payInvoice';
+
+            // Request body parameters
+            $requestBody = [
+                'amount' => $amount,
+                'callBackUrl' => $callBackUrl,
+                'cancelUrl' => $cancelUrl,
+                'clientEmail' => $clientEmail,
+                'clientMobile' => $clientMobile,
+                'currency' => $currency,
+                'clientName' => $clientName,
+                'note' => $note,
+                'orderNumber' => $orderNumber,
+                'products' => $productsArray,
+                'smsMessage' => $smsMessage,
+                'supportedCardBrands' => $filteredCardBrands,
+                'displayPending' => $displayPending,
+                'card' => [
+                    'expiry' => [
+                        'month' => $cardExpiryMonth,
+                        'year' => $cardExpiryYear,
+                    ],
+                    'number' => $cardNumber,
+                    'securityCode' => $cardSecurityCode,
+                ]
+            ];
+
+            // Send a POST request to the server
+            $response = Http::withHeaders([
+                'accept' => '*/*',
+                'content-type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->idToken,
+            ])->post($endpoint, $requestBody);
+
+            // Decode the JSON response
+            $responseData = $response->json();
+
+            if ($response->failed() || empty($responseData)) {
+                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
+                throw new Exception("Failed to process the payment for this direct invoice. $errorMsg");
+            }
+
+            return $responseData;
+        } catch (Exception $e) {
+            throw $e;
         }
-
-        // endpoint
-        $endpoint = $this->apiLink . '/api/payInvoice';
-
-        // Request body parameters
-        $requestBody = [
-            'amount' => $amount,
-            'callBackUrl' => $callBackUrl,
-            'cancelUrl' => $cancelUrl,
-            'clientEmail' => $clientEmail,
-            'clientMobile' => $clientMobile,
-            'currency' => $currency,
-            'clientName' => $clientName,
-            'note' => $note,
-            'orderNumber' => $orderNumber,
-            'products' => $productsArray,
-            'smsMessage' => $smsMessage,
-            'supportedCardBrands' => $filteredCardBrands,
-            'displayPending' => $displayPending,
-            'card' => [
-                'expiry' => [
-                    'month' => $cardExpiryMonth,
-                    'year' => $cardExpiryYear,
-                ],
-                'number' => $cardNumber,
-                'securityCode' => $cardSecurityCode,
-            ]
-        ];
-
-        // Send a POST request to the server
-        $response = Http::withHeaders([
-            'accept' => '*/*',
-            'content-type' => 'application/json',
-            'Authorization' => 'Bearer ' . $this->idToken,
-        ])->post($endpoint, $requestBody);
-
-        return $response;
     }
 
     /**
@@ -377,44 +431,56 @@ class MerchantService
         ?string $customerEmail = null,
         ?string $paymentNote = null,
     ) {
-        if (empty($this->idToken)) {
-            $this->_setIdToken();
+        try {
+            if (empty($this->idToken)) {
+                $this->_authentication();
+            }
+
+            // endpoint
+            $endpoint = $this->apiLink . '/api/registerPayment';
+
+            // Request body parameters
+            $requestBody = [
+                "payment" => [
+                    "value" => $paymentValue,
+                    "currencyCode" => $currencyCode,
+                    "paymentNote" => $paymentNote,
+                ],
+                "customer" => [
+                    "name" => $customerName,
+                    "mobile" => $customerMobile,
+                    "email" => $customerEmail
+                ],
+                "urls" => [
+                    "callback" => $callbackUrl
+                ],
+                "recurring" => [
+                    "type" => $recurringType,
+                    "intervalDays" => $recurringIntervalDays,
+                    "iterations" => $recurringIterations,
+                    "retryCount" => $recurringRetryCount
+                ]
+            ];
+
+            // Send a POST request to the server
+            $response = Http::withHeaders([
+                'accept' => '*/*',
+                'content-type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->idToken,
+            ])->post($endpoint, $requestBody);
+
+            // Decode the JSON response
+            $responseData = $response->json();
+
+            if ($response->failed() || empty($responseData)) {
+                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
+                throw new Exception("Failed to add this recurring payment. $errorMsg");
+            }
+
+            return $responseData;
+        } catch (Exception $e) {
+            throw $e;
         }
-
-        // endpoint
-        $endpoint = $this->apiLink . '/api/registerPayment';
-
-        // Request body parameters
-        $requestBody = [
-            "payment" => [
-                "value" => $paymentValue,
-                "currencyCode" => $currencyCode,
-                "paymentNote" => $paymentNote,
-            ],
-            "customer" => [
-                "name" => $customerName,
-                "mobile" => $customerMobile,
-                "email" => $customerEmail
-            ],
-            "urls" => [
-                "callback" => $callbackUrl
-            ],
-            "recurring" => [
-                "type" => $recurringType,
-                "intervalDays" => $recurringIntervalDays,
-                "iterations" => $recurringIterations,
-                "retryCount" => $recurringRetryCount
-            ]
-        ];
-
-        // Send a POST request to the server
-        $response = Http::withHeaders([
-            'accept' => '*/*',
-            'content-type' => 'application/json',
-            'Authorization' => 'Bearer ' . $this->idToken,
-        ])->post($endpoint, $requestBody);
-
-        return $response;
     }
 
     /**
@@ -431,27 +497,39 @@ class MerchantService
      */
     public function sendDigitalProduct(string $message, string $orderNumber)
     {
-        if (empty($this->idToken)) {
-            $this->_setIdToken();
+        try {
+            if (empty($this->idToken)) {
+                $this->_authentication();
+            }
+
+            // endpoint
+            $endpoint = $this->apiLink . '/api/sendDigitalProduct';
+
+            // Request body parameters
+            $requestBody = [
+                'message' => $message,
+                'orderNumber' => $orderNumber,
+            ];
+
+            // Send a POST request to the server
+            $response = Http::withHeaders([
+                'accept' => '*/*',
+                'content-type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->idToken,
+            ])->post($endpoint, $requestBody);
+
+            // Decode the JSON response
+            $responseData = $response->json();
+
+            if ($response->failed() || empty($responseData)) {
+                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
+                throw new Exception("Failed to process the payment for this direct invoice. $errorMsg");
+            }
+
+            return $responseData;
+        } catch (Exception $e) {
+            throw $e;
         }
-
-        // endpoint
-        $endpoint = $this->apiLink . '/api/sendDigitalProduct';
-
-        // Request body parameters
-        $requestBody = [
-            'message' => $message,
-            'orderNumber' => $orderNumber,
-        ];
-
-        // Send a POST request to the server
-        $response = Http::withHeaders([
-            'accept' => '*/*',
-            'content-type' => 'application/json',
-            'Authorization' => 'Bearer ' . $this->idToken,
-        ])->post($endpoint, $requestBody);
-
-        return $response;
     }
 
     /** --------------------------------------------- HELPERS --------------------------------------------- */
