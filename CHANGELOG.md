@@ -1,3 +1,6 @@
+## 1.0.5
+- Updated README file with detailed examples for each function in the package, providing clear usage instructions and showcasing the functionality.
+
 ## 1.0.4
 
 - Implemented robust error handlers to effectively manage various scenarios.
