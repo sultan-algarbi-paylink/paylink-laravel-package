@@ -1,3 +1,6 @@
+## 1.0.6
+- Resolved the APP ID error by replacing it with the correct API ID.
+
 ## 1.0.5
 - Updated README file with detailed examples for each function in the package, providing clear usage instructions and showcasing the functionality.
 

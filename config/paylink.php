@@ -3,13 +3,13 @@
 return [
     'merchant' => [
         'testing' => [
-            'api_id' => env('PAYLINK_TESTING_APP_ID', null),
+            'api_id' => env('PAYLINK_TESTING_API_ID', null),
             'secret_key' => env('PAYLINK_TESTING_SECRET_KEY', null),
             'persist_token' => env('PAYLINK_TESTING_PERSIST_TOKEN', false),
         ],
 
         'production' => [
-            'api_id' => env('PAYLINK_PRODUCTION_APP_ID', null),
+            'api_id' => env('PAYLINK_PRODUCTION_API_ID', null),
             'secret_key' => env('PAYLINK_PRODUCTION_SECRET_KEY', null),
             'persist_token' => env('PAYLINK_PRODUCTION_PERSIST_TOKEN', false),
         ]

@@ -28,16 +28,16 @@ class PartnerService
             $this->apiLink = 'https://restapi.paylink.sa';
 
             // config
-            $this->profileNo = config('paylink.partner.production.profileNo');
-            $this->apiKey = config('paylink.partner.production.apiKey');
+            $this->profileNo = config('paylink.partner.production.profile_no');
+            $this->apiKey = config('paylink.partner.production.api_key');
             $this->persistToken = config('paylink.partner.production.persist_token');
         } else {
             // links
             $this->apiLink = 'https://restpilot.paylink.sa';
 
             // config
-            $this->profileNo = config('paylink.partner.testing.profileNo');
-            $this->apiKey = config('paylink.partner.testing.apiKey');
+            $this->profileNo = config('paylink.partner.testing.profile_no');
+            $this->apiKey = config('paylink.partner.testing.api_key');
             $this->persistToken = config('paylink.partner.testing.persist_token');
         }
     }
@@ -424,7 +424,7 @@ class PartnerService
 
     /**
      * Get Merchant Keys:
-     * allows partners to retrieve API credentials (App ID and Secret Key)
+     * allows partners to retrieve API credentials (API ID and Secret Key)
      * for a specific sub-merchant.
      * 
      * @param string $searchType Path variable for the search type. [cr, freelancer, mobile, email, accountNo]

@@ -35,7 +35,7 @@ After installing the package, you need to add the Paylink service provider to yo
 
 ```dotenv
 # PRODUCTION ENVIRONMENT:
-PAYLINK_PRODUCTION_APP_ID=[your_production_api_id]
+PAYLINK_PRODUCTION_API_ID=[your_production_api_id]
 PAYLINK_PRODUCTION_SECRET_KEY=[your_production_secret_key]
 PAYLINK_PRODUCTION_PERSIST_TOKEN=false
 ```
@@ -203,7 +203,7 @@ PAYLINK_PRODUCTION_PERSIST_TOKEN=false
 
 6. **Get Merchant Keys**
 
-   Retrieves API credentials (App ID and Secret Key) for a specific sub-merchant.
+   Retrieves API credentials (API ID and Secret Key) for a specific sub-merchant.
 
    ```php
       $partnerService = new PartnerService();

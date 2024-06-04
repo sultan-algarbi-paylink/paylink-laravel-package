@@ -38,7 +38,7 @@ The `PartnerService` class provides methods to interact with the Paylink API for
 2. **Get Merchant Keys**
 
    - **Method:** `getMerchantKeys(...)`
-   - **Purpose:** Retrieves API credentials (App ID and Secret Key) for a specific sub-merchant.
+   - **Purpose:** Retrieves API credentials (API ID and Secret Key) for a specific sub-merchant.
    - **Endpoint Reference:** [Get Merchant Keys](https://paylinksa.readme.io/docs/paylink-partner-api-get-merchant-keys)
 
 3. **Archive Merchant**

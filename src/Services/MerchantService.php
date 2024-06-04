@@ -22,7 +22,7 @@ class MerchantService
      */
     private string $apiLink;
     private string $paymentPagePrefix;
-    private string $appId;
+    private string $apiId;
     private string $secretKey;
     private bool $persistToken;
     private string $idToken;
@@ -38,7 +38,7 @@ class MerchantService
             $this->paymentPagePrefix = 'https://payment.paylink.sa/pay/order';
 
             // config
-            $this->appId = config('paylink.merchant.production.app_id');
+            $this->apiId = config('paylink.merchant.production.api_id');
             $this->secretKey = config('paylink.merchant.production.secret_key');
             $this->persistToken = config('paylink.merchant.production.persist_token', false);
         } else {
@@ -47,7 +47,7 @@ class MerchantService
             $this->paymentPagePrefix = 'https://paymentpilot.paylink.sa/pay/info';
 
             // config
-            $this->appId = config('paylink.merchant.testing.app_id', 'APP_ID_1123453311');
+            $this->apiId = config('paylink.merchant.testing.api_id', 'APP_ID_1123453311');
             $this->secretKey = config('paylink.merchant.testing.secret_key', '0662abb5-13c7-38ab-cd12-236e58f43766');
             $this->persistToken = config('paylink.merchant.testing.persist_token', false);
         }
@@ -68,7 +68,7 @@ class MerchantService
         try {
             // Prepare the request body with necessary parameters
             $requestBody = [
-                'apiId' => $this->appId,
+                'apiId' => $this->apiId,
                 'secretKey' => $this->secretKey,
                 'persistToken' => $this->persistToken
             ];
