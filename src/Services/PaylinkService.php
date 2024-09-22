@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Http;
 use Paylink\Models\PaylinkProduct;
 use Paylink\Models\PaylinkInvoiceResponse;
 
-class MerchantService
+class PaylinkService
 {
     // API URLs for production and test environments
     private const PRODUCTION_API_URL = 'https://restapi.paylink.sa';
