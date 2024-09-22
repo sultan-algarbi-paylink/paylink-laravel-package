@@ -10,42 +10,27 @@ You can install the `paylinksa/laravel` package via composer. Run the following 
 composer require paylinksa/laravel
 ```
 
-## Package Integration
-
-After installing the package, you need to add the Paylink service provider to your Laravel application configuration.
-
-1. Open your Laravel application's `config/app.php` file.
-
-2. Add the following line to the `providers` array:
-
-   ```php
-   'providers' => [
-       // Other Service Providers...
-       Paylink\PaylinkServiceProvider::class,
-   ],
-   ```
-
----
-
-## Merchant Service
+## Payment Service
 
 ### Environment Setup
 
-1. Add the following environment variables to your `.env` file:
+Create an instance of PaylinkService based on your environment
 
-```dotenv
-# PRODUCTION ENVIRONMENT:
-PAYLINK_PRODUCTION_API_ID=[your_production_api_id]
-PAYLINK_PRODUCTION_SECRET_KEY=[your_production_secret_key]
-PAYLINK_PRODUCTION_PERSIST_TOKEN=false
+- For Testing
+
+```php
+use Paylink\Services\PaylinkService;
+
+$paylinkService = PaylinkService::test();
 ```
 
-2. Replace placeholders as following:
+- For Production
 
-   - `[your_production_api_id]` => `API ID`
-   - `[your_production_secret_key]` => `API Secret Key`
+```php
+use Paylink\Services\PaylinkService;
 
-   `API ID` and `API Secret Key` can be obtained from [MY PAYLINK PORTAL->SETTINGS](https://my.paylink.sa/).
+$paylinkService = PaylinkService::production('API_ID_xxxxxxxxxx', 'SECRET_KEY_xxxxxxxxxx');
+```
 
 ### Methods
 
@@ -54,13 +39,17 @@ PAYLINK_PRODUCTION_PERSIST_TOKEN=false
    Add an invoice to the system for payment processing.
 
    ```php
-      $merchantService = new MerchantService();
-      $invoiceDetails = $merchantService->addInvoice(
-         amount: 170.0,
+      use Paylink\Models\PaylinkProduct;
+
+      $invoiceDetails = $paylinkService->addInvoice(
+         amount: 250.0,
          clientMobile: '0512345678',
          clientName: 'Mohammed Ali',
          orderNumber: '123456789',
-         products: $products,
+         products: [
+            new PaylinkProduct(title: 'item1', price: 5.0, qty: 10),
+            new PaylinkProduct(title: 'item2', price: 20.0, qty: 10)
+         ],
          callBackUrl: 'https://example.com',
       );
    ```
@@ -70,8 +59,12 @@ PAYLINK_PRODUCTION_PERSIST_TOKEN=false
    Retrieve invoice details.
 
    ```php
-      $merchantService = new MerchantService();
-      $invoiceDetails = $merchantService->getInvoice(transactionNo: '1714289084591');
+      $invoiceDetails = $paylinkService->getInvoice(transactionNo: '1714289084591');
+
+      // $invoiceDetails->orderStatus;
+      // $invoiceDetails->transactionNo;
+      // $invoiceDetails->url;
+      // ...
    ```
 
 3. **Cancel Invoice**
@@ -79,16 +72,15 @@ PAYLINK_PRODUCTION_PERSIST_TOKEN=false
    Cancel an existing invoice initiated by the merchant.
 
    ```php
-      $merchantService = new MerchantService();
-      $merchantService->cancelInvoice(transactionNo: '1714289084591');
+      $paylinkService->cancelInvoice(transactionNo: '1714289084591'); // true-false
    ```
 
 ### Examples:
 
-- [Merchant Examples](Examples/MerchantExamples.php)
-- [Payment Webhook](Examples/PaymentWebhook.php) (used by merchants)
+- [Paylink Payment Examples](Examples/PaymentExamples.php)
+- [Paylink Payment Webhook](Examples/PaymentWebhook.php) (used by merchants)
 
-For detailed usage instructions, refer to the [Merchant Services](docs/MerchantService.md)
+For detailed usage instructions, refer to the [Paylink Payment Services Documentation](docs/PaylinkService.md)
 
 ---
 
@@ -96,28 +88,23 @@ For detailed usage instructions, refer to the [Merchant Services](docs/MerchantS
 
 ### Environment Setup
 
-1. Add the following environment variables to your `.env` file:
+Create an instance of PartnerService based on your environment
 
-```dotenv
-# TESTING ENVIRONMENT:
-PAYLINK_TESTING_PROFILE_NO=[your_profile_no_for_testing]
-PAYLINK_TESTING_API_KEY=[your_api_key_for_testing]
-PAYLINK_TESTING_PERSIST_TOKEN=false
+- For Testing
 
-# PRODUCTION ENVIRONMENT:
-PAYLINK_PRODUCTION_PROFILE_NO=[your_profile_no_for_production]
-PAYLINK_PRODUCTION_API_KEY=[your_api_key_for_production]
-PAYLINK_PRODUCTION_PERSIST_TOKEN=false
+```php
+use Paylink\Services\PartnerService;
+
+$partnerService = PartnerService::test('profileNo_xxxxxxxxxxx', 'apiKey_xxxxxxxxxxxx');
 ```
 
-2. Replace placeholders as following:
+- For Production
 
-   - `[your_profile_no_for_testing]` => `Profile No`
-   - `[your_api_key_for_testing]` => `API Key`
-   - `[your_profile_no_for_production]` => `Profile No`
-   - `[your_api_key_for_production]` => `API Key`
+```php
+use Paylink\Services\PartnerService;
 
-   `Profile No` and `API Key` can be obtained from [MY PAYLINK PORTAL->SETTINGS](https://my.paylink.sa/).
+$partnerService = PartnerService::production('profileNo_xxxxxxxxxxx', 'apiKey_xxxxxxxxxxxx');
+```
 
 ### Methods
 
@@ -126,7 +113,6 @@ PAYLINK_PRODUCTION_PERSIST_TOKEN=false
    Initiates the first step of the registration process by checking the merchant's license information.
 
    ```php
-      $partnerService = new PartnerService();
       $responseData = $partnerService->checkLicense(
          registrationType: "cr", // freelancer or cr
          licenseNumber: "7014832310",
@@ -143,7 +129,6 @@ PAYLINK_PRODUCTION_PERSIST_TOKEN=false
    Validates the merchant's mobile number by confirming the OTP received via SMS.
 
    ```php
-      $partnerService = new PartnerService();
       $responseData = $partnerService->validateMobile(
          signature: "ae135f2506dc3c44152d62265419c09e80dec0b108090bc81d6a1a691c3f0647",
          mobile: "0512345678",
@@ -158,7 +143,6 @@ PAYLINK_PRODUCTION_PERSIST_TOKEN=false
    Adds information related to the merchant, such as bank details, business category, and personal information.
 
    ```php
-      $partnerService = new PartnerService();
       $responseData = $partnerService->addInfo(
          mobile: "0500000001",
          sessionUuid: "96ea8e22-edef-414b-9724-3bd2d494b710",
@@ -183,7 +167,6 @@ PAYLINK_PRODUCTION_PERSIST_TOKEN=false
    Confirms the account with Nafath after submitting the required information.
 
    ```php
-      $partnerService = new PartnerService();
       $responseData = $partnerService->confirmingWithNafath(
          signature: 'ae135f2506dc3c44152d62265419c09e80dec0b108090bc81d6a1a691c3f0647',
          sessionUuid: '96ea8e22-edef-414b-9724-3bd2d494b710',
@@ -197,7 +180,6 @@ PAYLINK_PRODUCTION_PERSIST_TOKEN=false
    Retrieves a list of merchants associated with the partner's account.
 
    ```php
-      $partnerService = new PartnerService();
       $responseData = $partnerService->getMyMerchants();
    ```
 
@@ -206,7 +188,6 @@ PAYLINK_PRODUCTION_PERSIST_TOKEN=false
    Retrieves API credentials (API ID and Secret Key) for a specific sub-merchant.
 
    ```php
-      $partnerService = new PartnerService();
       $responseData = $partnerService->getMerchantKeys(
          searchType: 'cr', // cr, freelancer, mobile, email, accountNo
          searchValue: '20139202930',
@@ -219,7 +200,7 @@ PAYLINK_PRODUCTION_PERSIST_TOKEN=false
 - [Partner Examples](Examples/PartnerExamples.php)
 - [Activation Webhook](Examples/ActivationWebhook.php) (used by partners)
 
-For detailed usage instructions, refer to the [Partner Service](docs/PartnerService.md)
+For detailed usage instructions, refer to the [Partner Service Documentation](docs/PartnerService.md)
 
 ---
 

@@ -151,7 +151,7 @@ class PaylinkService
      * @param array|null $supportedCardBrands List of supported card brands. This list is optional. Supported values are: [mada, visaMastercard, amex, tabby, tamara, stcpay, urpay].
      * @param bool|null $displayPending This option will make this invoice displayed in my.paylink.sa.
      * 
-     * @return array Returns the details of the added invoice.
+     * @return PaylinkInvoiceResponse Returns the details of the added invoice.
      * 
      * @throws Exception If adding the invoice fails.
      * 
@@ -245,7 +245,7 @@ class PaylinkService
      * 
      * @param string $transactionNo The transaction number of the invoice to retrieve.
      * 
-     * @return array Returns the invoice details.
+     * @return PaylinkInvoiceResponse Returns the invoice details.
      * 
      * @throws Exception If authentication fails or if there's an issue with retrieving the invoice.
      * 
@@ -368,7 +368,7 @@ class PaylinkService
      * @param array|null $supportedCardBrands List of supported card brands, values are: [mada, visaMastercard, amex, tabby, tamara, stcpay, urpay]
      * @param bool|null $displayPending Option to display the invoice in my.paylink.sa.
      * 
-     * @return array|null Returns the response data from the server or null if the request fails.
+     * @return PaylinkInvoiceResponse Returns the response data from the server.
      * 
      * @throws Exception If authentication fails or if there's an issue with processing the payment.
      * 

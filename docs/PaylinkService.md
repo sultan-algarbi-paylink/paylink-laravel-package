@@ -1,6 +1,6 @@
-### MerchantService
+### PaylinkService
 
-The `MerchantService` class provides methods to interact with the Paylink API for merchant-related operations. It offers functionalities such as adding invoices, processing payments with card information, and managing recurring payments.
+The `PaylinkService` class provides methods to interact with the Paylink API for merchant-related operations. It offers functionalities such as adding invoices, processing payments with card information, and managing recurring payments.
 
 #### Invoice Operations
 

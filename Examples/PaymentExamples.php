@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Exception;
 
 // Import Paylink Package
-use Paylink\Services\MerchantService;
+use Paylink\Services\PaylinkService;
 use Paylink\Models\PaylinkProduct;
 
 class MerchantController extends Controller
@@ -16,8 +16,9 @@ class MerchantController extends Controller
     public function addInvoice()
     {
         try {
-            // Create an instance of MerchantService
-            $merchantService = new MerchantService();
+            // Create an instance of PaylinkService
+            $paylinkService = PaylinkService::test();
+            // $paylinkService = PaylinkService::production('API_ID_xxxxxxxxxx', 'SECRET_KEY_xxxxxxxxxx');
 
             // Prepare products as PaylinkProduct objects
             $products = [
@@ -39,7 +40,7 @@ class MerchantController extends Controller
             ];
 
             // Call Paylink to add a new invoice
-            $invoiceDetails = $merchantService->addInvoice(
+            $invoiceDetails = $paylinkService->addInvoice(
                 amount: 170.0,
                 clientMobile: '0512345678',
                 clientName: 'Mohammed Ali',
@@ -55,7 +56,12 @@ class MerchantController extends Controller
                 displayPending: true, // optional
             );
 
+            // $invoiceDetails->orderStatus;
+            // $invoiceDetails->transactionNo;
+            // $invoiceDetails->url;
+
             // -- Use the invoiceDetails based on your need
+            return $invoiceDetails->orderStatus;
         } catch (Exception $e) {
             // -- Handle the error
         }
@@ -65,13 +71,14 @@ class MerchantController extends Controller
     public function getInvoice()
     {
         try {
-            // Create an instance of MerchantService
-            $merchantService = new MerchantService();
+            // Create an instance of PaylinkService
+            $paylinkService = PaylinkService::production('API_ID_xxxxxxxxxx', 'SECRET_KEY_xxxxxxxxxx');
 
             // Call Paylink to get the invoice
-            $invoiceDetails = $merchantService->getInvoice(transactionNo: '1714289084591');
+            $invoiceDetails = $paylinkService->getInvoice(transactionNo: '1714289084591');
 
             // -- Use the invoiceDetails based on your need
+            return $invoiceDetails->orderStatus;
         } catch (Exception $e) {
             // -- Handle the error
         }
@@ -81,15 +88,20 @@ class MerchantController extends Controller
     public function cancelInvoice()
     {
         try {
-            // Create an instance of MerchantService
-            $merchantService = new MerchantService();
+            // Create an instance of PaylinkService
+            $paylinkService = PaylinkService::test();
 
             // Call Paylink to cancel the invoice
-            $merchantService->cancelInvoice(
+            $deleted = $paylinkService->cancelInvoice(
                 transactionNo: '1714289084591'
             );
 
             // -- If no error exception is thrown, the invoice was canceled successfully
+            if ($deleted) {
+                return 'Invoice canceled successfully';
+            } else {
+                return 'Failed to cancel invoice';
+            }
         } catch (Exception $e) {
             // -- Handle the error
         }
@@ -101,8 +113,8 @@ class MerchantController extends Controller
     public function processPaymentWithCardInfo()
     {
         try {
-            // Create an instance of MerchantService
-            $merchantService = new MerchantService();
+            // Create an instance of PaylinkService
+            $paylinkService = PaylinkService::test();
 
             // Prepare products as PaylinkProduct objects
             $products = [
@@ -124,7 +136,7 @@ class MerchantController extends Controller
             ];
 
             // calling paylink to pay Invoice
-            $responseData = $merchantService->processPaymentWithCardInfo(
+            $invoiceDetails = $paylinkService->processPaymentWithCardInfo(
                 // Card Info
                 cardNumber: '4242424242424242',
                 cardSecurityCode: '123',
@@ -147,6 +159,7 @@ class MerchantController extends Controller
             );
 
             // -- Use the responseData based on your need
+            return $invoiceDetails->orderStatus;
         } catch (Exception $e) {
             // -- Handle the error
         }
@@ -156,11 +169,11 @@ class MerchantController extends Controller
     public function recurringPayment()
     {
         try {
-            // Create an instance of MerchantService
-            $merchantService = new MerchantService();
+            // Create an instance of PaylinkService
+            $paylinkService = PaylinkService::test();
 
             // Call Paylink to initiate a recurring payment
-            $responseData = $merchantService->recurringPayment(
+            $responseData = $paylinkService->recurringPayment(
                 paymentValue: 1000.0,
                 customerName: 'Mohammed Ali',
                 customerMobile: '0512345678',
@@ -185,11 +198,11 @@ class MerchantController extends Controller
     public function sendDigitalProduct()
     {
         try {
-            // Create an instance of MerchantService
-            $merchantService = new MerchantService();
+            // Create an instance of PaylinkService
+            $paylinkService = PaylinkService::test();
 
             // Call Paylink to send the digital product
-            $responseData = $merchantService->sendDigitalProduct(
+            $responseData = $paylinkService->sendDigitalProduct(
                 message: 'CODE: 12112AAADDB11',
                 orderNumber: '123456789',
             );
