@@ -16,7 +16,8 @@ class PartnerController extends Controller
     {
         try {
             // Create an instance of PartnerService
-            $partnerService = new PartnerService();
+            $partnerService = PartnerService::test('profileNo_xxxxxxxxxxx', 'apiKey_xxxxxxxxxxxx');
+            // $partnerService = PartnerService::production('profileNo_xxxxxxxxxxx', 'apiKey_xxxxxxxxxxxx');
 
             // Call Paylink to check license
             $responseData = $partnerService->checkLicense(
@@ -40,7 +41,7 @@ class PartnerController extends Controller
     {
         try {
             // Create an instance of PartnerService
-            $partnerService = new PartnerService();
+            $partnerService = PartnerService::test('profileNo_xxxxxxxxxxx', 'apiKey_xxxxxxxxxxxx');
 
             // Call Paylink to validate mobile number
             $responseData = $partnerService->validateMobile(
@@ -62,7 +63,7 @@ class PartnerController extends Controller
     {
         try {
             // Create an instance of PartnerService
-            $partnerService = new PartnerService();
+            $partnerService = PartnerService::test('profileNo_xxxxxxxxxxx', 'apiKey_xxxxxxxxxxxx');
 
             // Call Paylink to add additional information
             $responseData = $partnerService->addInfo(
@@ -94,7 +95,7 @@ class PartnerController extends Controller
     {
         try {
             // Create an instance of PartnerService
-            $partnerService = new PartnerService();
+            $partnerService = PartnerService::test('profileNo_xxxxxxxxxxx', 'apiKey_xxxxxxxxxxxx');
 
             // Call Paylink to confirm partner registration with Nafath
             $responseData = $partnerService->confirmingWithNafath(
@@ -116,7 +117,7 @@ class PartnerController extends Controller
     {
         try {
             // Create an instance of PartnerService
-            $partnerService = new PartnerService();
+            $partnerService = PartnerService::test('profileNo_xxxxxxxxxxx', 'apiKey_xxxxxxxxxxxx');
 
             // Call Paylink to retrieve merchants
             $responseData = $partnerService->getMyMerchants();
@@ -132,7 +133,7 @@ class PartnerController extends Controller
     {
         try {
             // Create an instance of PartnerService
-            $partnerService = new PartnerService();
+            $partnerService = PartnerService::test('profileNo_xxxxxxxxxxx', 'apiKey_xxxxxxxxxxxx');
 
             // Call Paylink to retrieve merchant keys
             $responseData = $partnerService->getMerchantKeys(
@@ -152,7 +153,7 @@ class PartnerController extends Controller
     {
         try {
             // Create an instance of PartnerService
-            $partnerService = new PartnerService();
+            $partnerService = PartnerService::test('profileNo_xxxxxxxxxxx', 'apiKey_xxxxxxxxxxxx');
 
             // Call Paylink to archive a merchant
             $responseData = $partnerService->archiveMerchant(
