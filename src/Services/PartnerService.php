@@ -7,11 +7,17 @@ use Illuminate\Support\Facades\Http;
 
 class PartnerService
 {
+    // API URLs for production and test environments
+    private const PRODUCTION_API_URL = 'https://restapi.paylink.sa';
+    private const TEST_API_URL = 'https://restpilot.paylink.sa';
+
     /**
      * Paylink Service configration
      * @see https://paylinksa.readme.io/docs/partner-authentication#authentication
      */
-    private string $apiLink;
+
+    private string $environment;
+    private string $apiBaseUrl;
     private string $profileNo;
     private string $apiKey;
     private bool $persistToken;
@@ -19,27 +25,47 @@ class PartnerService
 
     /**
      * PartnerService constructor.
-     * Initializes API configuration based on the environment.
+     *
+     * @param string $environment
+     * @param string $profileNo
+     * @param string $apiKey
      */
-    public function __construct()
+    public function __construct(string $environment, string $profileNo, string $apiKey)
     {
-        if (app()->environment('production')) {
-            // links
-            $this->apiLink = 'https://restapi.paylink.sa';
+        $this->apiBaseUrl = $environment === 'production' ? self::PRODUCTION_API_URL : self::TEST_API_URL;
+        $this->environment = $environment;
+        $this->profileNo = $profileNo;
+        $this->apiKey = $apiKey;
+        $this->persistToken = false;
+        $this->idToken = null;
 
-            // config
-            $this->profileNo = config('paylink.partner.production.profile_no');
-            $this->apiKey = config('paylink.partner.production.api_key');
-            $this->persistToken = config('paylink.partner.production.persist_token');
-        } else {
-            // links
-            $this->apiLink = 'https://restpilot.paylink.sa';
-
-            // config
-            $this->profileNo = config('paylink.partner.testing.profile_no');
-            $this->apiKey = config('paylink.partner.testing.api_key');
-            $this->persistToken = config('paylink.partner.testing.persist_token');
+        if (is_null($this->profileNo) || is_null($this->apiKey)) {
+            throw new \InvalidArgumentException('Profile_No and API_Key are required.');
         }
+    }
+
+    /**
+     * Initialize the Paylink Partner for the test environment.
+     *
+     * @param string $profileNo
+     * @param string $apiKey
+     * @return static
+     */
+    public static function test(string $profileNo, string $apiKey): self
+    {
+        return new self('test', $profileNo,  $apiKey);
+    }
+
+    /**
+     * Initialize the Paylink Partner for the production environment.
+     *
+     * @param string $profileNo
+     * @param string $apiKey
+     * @return static
+     */
+    public static function production(string $profileNo, string $apiKey): self
+    {
+        return new self('production', $profileNo, $apiKey);
     }
 
     /** 
@@ -55,7 +81,7 @@ class PartnerService
     {
         try {
             // Construct the authentication endpoint URL
-            $endpoint = $this->apiLink . '/api/partner/auth';
+            $endpoint = "$this->apiBaseUrl/api/partner/auth";
 
             // Prepare the request body with necessary parameters
             $requestBody = [
@@ -125,7 +151,7 @@ class PartnerService
             }
 
             // Prepare the API endpoint
-            $endpoint = $this->apiLink . "/api/partner/register/check-license";
+            $endpoint = $this->apiBaseUrl . "/api/partner/register/check-license";
 
             // Construct the request body
             $requestBody = [
@@ -139,7 +165,8 @@ class PartnerService
             ];
 
             // Send a POST request to the server
-            $response = Http::withHeaders(['accept' => 'application/json',
+            $response = Http::withHeaders([
+                'accept' => 'application/json',
                 'content-type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->idToken,
             ])->post($endpoint, $requestBody);
@@ -190,7 +217,7 @@ class PartnerService
             }
 
             // Prepare the API endpoint
-            $endpoint = $this->apiLink . "/api/partner/register/validate-otp";
+            $endpoint = $this->apiBaseUrl . "/api/partner/register/validate-otp";
 
             // Construct the request body
             $requestBody = [
@@ -273,7 +300,7 @@ class PartnerService
             }
 
             // Prepare the API endpoint
-            $endpoint = $this->apiLink . "/api/partner/register/add-info";
+            $endpoint = $this->apiBaseUrl . "/api/partner/register/add-info";
 
             // Construct the request body
             $requestBody = [
@@ -345,7 +372,7 @@ class PartnerService
             }
 
             // Prepare the API endpoint
-            $endpoint = $this->apiLink . "/api/partner/register/confirm-account";
+            $endpoint = $this->apiBaseUrl . "/api/partner/register/confirm-account";
 
             // Construct the request body
             $requestBody = [
@@ -398,7 +425,7 @@ class PartnerService
             }
 
             // Prepare the API endpoint
-            $endpoint = $this->apiLink . '/rest/partner/getMyMerchants';
+            $endpoint = $this->apiBaseUrl . '/rest/partner/getMyMerchants';
 
             // Send a GET request to the server
             $response = Http::withHeaders([
@@ -456,7 +483,7 @@ class PartnerService
             }
 
             // Prepare the API endpoint
-            $endpoint = $this->apiLink . "/rest/partner/getMerchantKeys/$searchType/$searchValue?profileNo=$profileNo";
+            $endpoint = $this->apiBaseUrl . "/rest/partner/getMerchantKeys/$searchType/$searchValue?profileNo=$profileNo";
 
             // Send a GET request to the server
             $response = Http::withHeaders([
@@ -518,7 +545,7 @@ class PartnerService
             }
 
             // Prepare the API endpoint
-            $endpoint = $this->apiLink . "/rest/partner/test/archive-merchant/$partnerProfileNo";
+            $endpoint = $this->apiBaseUrl . "/rest/partner/test/archive-merchant/$partnerProfileNo";
 
             // Construct the request body
             $requestBody = [
@@ -527,7 +554,8 @@ class PartnerService
             ];
 
             // Send a POST request to the server
-            $response = Http::withHeaders(['accept' => 'application/json',
+            $response = Http::withHeaders([
+                'accept' => 'application/json',
                 'content-type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->idToken,
             ])->post($endpoint, $requestBody);
