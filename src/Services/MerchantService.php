@@ -5,52 +5,79 @@ namespace Paylink\Services;
 use Exception;
 use Illuminate\Support\Facades\Http;
 use Paylink\Models\PaylinkProduct;
+use Paylink\Models\PaylinkInvoiceResponse;
 
 class MerchantService
 {
-    /**
-     * Valid card brands accepted by Paylink.
-     *
-     * @see https://paylinksa.readme.io/docs/payment-methods Official Paylink documentation for payment methods.
-     */
+    // API URLs for production and test environments
+    private const PRODUCTION_API_URL = 'https://restapi.paylink.sa';
+    private const TEST_API_URL = 'https://restpilot.paylink.sa';
+
+    // Payment Page URLs for production and test environments
+    private const PRODUCTION_PAYMENT_PAGE_URL = 'https://payment.paylink.sa/pay/order';
+    private const TEST_PAYMENT_PAGE_URL = 'https://paymentpilot.paylink.sa/pay/info';
+
+    // Default credentials for the test environment
+    private const DEFAULT_TEST_API_ID = 'APP_ID_1123453311';
+    private const DEFAULT_TEST_SECRET_KEY = '0662abb5-13c7-38ab-cd12-236e58f43766';
+
+    // Valid card brands accepted by Paylink.
     private const VALID_CARD_BRANDS = ['mada', 'visaMastercard', 'amex', 'tabby', 'tamara', 'stcpay', 'urpay'];
 
-    /**
-     * Paylink Service configration
-     *
-     * @see https://paylinksa.readme.io/docs/authentication#request-body-parameters Official Paylink API documentation for authentication.
-     */
-    private string $apiLink;
-    private string $paymentPagePrefix;
+    // Properties
+    private string $apiBaseUrl;
+    private string $paymentBaseUrl;
     private string $apiId;
     private string $secretKey;
-    private bool $persistToken;
-    private string $idToken;
+    private bool $persistToken = false;
+    private ?string $idToken;
 
     /**
-     * Initializes the MerchantService with configuration based on the current environment.
+     * PaylinkService constructor.
+     *
+     * @param string $environment
+     * @param string|null $apiId
+     * @param string|null $secretKey
      */
-    public function __construct()
+    public function __construct(?string $environment, ?string $apiId = null, ?string $secretKey = null)
     {
-        if (app()->environment('production')) {
-            // Production environment settings
-            $this->apiLink = 'https://restapi.paylink.sa';
-            $this->paymentPagePrefix = 'https://payment.paylink.sa/pay/order';
+        // Set environment
+        $environment ??= app()->environment();
 
-            // config
-            $this->apiId = config('paylink.merchant.production.api_id');
-            $this->secretKey = config('paylink.merchant.production.secret_key');
-            $this->persistToken = config('paylink.merchant.production.persist_token', false);
-        } else {
-            // Testing environment settings
-            $this->apiLink = 'https://restpilot.paylink.sa';
-            $this->paymentPagePrefix = 'https://paymentpilot.paylink.sa/pay/info';
+        // Determine the base URL based on the environment
+        $this->apiBaseUrl = $environment === 'production' ? self::PRODUCTION_API_URL : self::TEST_API_URL;
+        $this->paymentBaseUrl = $environment === 'production' ? self::PRODUCTION_PAYMENT_PAGE_URL : self::TEST_PAYMENT_PAGE_URL;
 
-            // config
-            $this->apiId = config('paylink.merchant.testing.api_id', 'APP_ID_1123453311');
-            $this->secretKey = config('paylink.merchant.testing.secret_key', '0662abb5-13c7-38ab-cd12-236e58f43766');
-            $this->persistToken = config('paylink.merchant.testing.persist_token', false);
+        // Determine API ID and Secret Key
+        $this->apiId = $environment === 'production' ? $apiId : self::DEFAULT_TEST_API_ID;
+        $this->secretKey = $environment === 'production' ? $secretKey : self::DEFAULT_TEST_SECRET_KEY;
+        $this->idToken = null;
+
+        if (is_null($this->apiId) || is_null($this->secretKey)) {
+            throw new \InvalidArgumentException('API_ID and Secret_Key are required for the production environment');
         }
+    }
+
+    /**
+     * Initialize the Paylink client for the test environment.
+     *
+     * @return static
+     */
+    public static function test(): self
+    {
+        return new self('test');
+    }
+
+    /**
+     * Initialize the Paylink client for the production environment.
+     *
+     * @param string $apiId
+     * @param string $secretKey
+     * @return static
+     */
+    public static function production(string $apiId, string $secretKey): self
+    {
+        return new self('production', $apiId, $secretKey);
     }
 
     /**
@@ -66,29 +93,32 @@ class MerchantService
     private function _authentication()
     {
         try {
-            // Prepare the request body with necessary parameters
+            // Request Endpoint
+            $requestEndpoint = "$this->apiBaseUrl/api/auth";
+
+            // Request headers
+            $requestHeader = [
+                'accept' => 'application/json',
+                'content-type' => 'application/json',
+            ];
+
+            // Request body parameters
             $requestBody = [
                 'apiId' => $this->apiId,
                 'secretKey' => $this->secretKey,
                 'persistToken' => $this->persistToken
             ];
 
-            // Construct the authentication endpoint URL
-            $endpoint = $this->apiLink . '/api/auth';
-
             // Send a POST request to the authentication endpoint
-            $response = Http::withHeaders([
-                'accept' => 'application/json',
-                'content-type' => 'application/json',
-            ])->post($endpoint, $requestBody);
+            $response = Http::withHeaders($requestHeader)->post($requestEndpoint, $requestBody);
 
             // Decode the JSON response
             $responseData = $response->json();
 
             // Check if the request failed or succeeded
             if ($response->failed() || empty($responseData) || empty($responseData['id_token'])) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
-                throw new Exception("Failed to authenticate. $errorMsg");
+                $errorMsg = !empty($response->body()) ? $response->body() : "Failed to authenticate. Status code: $response->status()";
+                throw new Exception($errorMsg, $response->status());
             }
 
             // Set the authentication token for future API calls
@@ -136,12 +166,12 @@ class MerchantService
         string $callBackUrl,
         ?string $cancelUrl = null,
         ?string $clientEmail = null,
-        ?string $currency = null,
+        ?string $currency = 'SAR',
         ?string $note = null,
         ?string $smsMessage = null,
         ?array $supportedCardBrands = [],
         ?bool $displayPending = true
-    ) {
+    ): PaylinkInvoiceResponse {
         try {
             // Ensure authentication is done
             if (empty($this->idToken)) {
@@ -149,24 +179,29 @@ class MerchantService
             }
 
             // Filter and sanitize supportedCardBrands
-            $filteredCardBrands = array_filter($supportedCardBrands, function ($brand) {
+            $filteredCardBrands = array_filter($supportedCardBrands, function ($brand): bool {
                 return is_string($brand) && in_array($brand, self::VALID_CARD_BRANDS);
             });
 
             // Convert PaylinkProduct objects to arrays
             $productsArray = [];
-            if (!empty($products)) {
-                foreach ($products as $index => $product) {
-                    if ($product instanceof PaylinkProduct) {
-                        $productsArray[] = $product->toArray();
-                    } else {
-                        throw new \InvalidArgumentException("Invalid product type at index $index");
-                    }
+            foreach ($products as $index => $product) {
+                if ($product instanceof PaylinkProduct) {
+                    $productsArray[] = $product->toArray();
+                } else {
+                    throw new \InvalidArgumentException("Invalid product type at index $index, Each product must be an instance of Paylink\Models\PaylinkProduct.");
                 }
             }
 
-            // Construct the endpoint URL
-            $endpoint = $this->apiLink . '/api/addInvoice';
+            // Request Endpoint
+            $requestEndpoint = "$this->apiBaseUrl/api/addInvoice";
+
+            // Request headers
+            $requestHeader = [
+                'accept' => 'application/json',
+                'content-type' => 'application/json',
+                'Authorization' => "Bearer $this->idToken",
+            ];
 
             // Request body parameters
             $requestBody = [
@@ -186,22 +221,18 @@ class MerchantService
             ];
 
             // Send a POST request to the server
-            $response = Http::withHeaders([
-                'accept' => 'application/json',
-                'content-type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->idToken,
-            ])->post($endpoint, $requestBody);
+            $response = Http::withHeaders($requestHeader)->post($requestEndpoint, $requestBody);
 
             // Decode the JSON response
             $orderDetails = $response->json();
 
             // Check for request failure or empty response
             if ($response->failed() || empty($orderDetails)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
-                throw new Exception("Failed to add the invoice. $errorMsg");
+                $errorMsg = !empty($response->body()) ? $response->body() : "Failed to add the invoice. Status code: $response->status()";
+                throw new Exception($errorMsg, $response->status());
             }
 
-            return $orderDetails;
+            return PaylinkInvoiceResponse::fromResponseData($orderDetails);
         } catch (Exception $e) {
             throw $e; // Re-throw the exception for higher-level handling
         }
@@ -220,7 +251,7 @@ class MerchantService
      * 
      * @see https://paylinksa.readme.io/docs/order-request
      */
-    public function getInvoice(string $transactionNo)
+    public function getInvoice(string $transactionNo): PaylinkInvoiceResponse
     {
         try {
             // Ensure authentication is done
@@ -228,26 +259,29 @@ class MerchantService
                 $this->_authentication();
             }
 
-            // Prepare the API endpoint
-            $endpoint = $this->apiLink . '/api/getInvoice/' . $transactionNo;
+            // Request Endpoint
+            $requestEndpoint = "$this->apiBaseUrl/api/getInvoice/$transactionNo";
 
-            // Send a GET request to the server
-            $response = Http::withHeaders([
+            // Request headers
+            $requestHeader = [
                 'accept' => 'application/json',
                 'content-type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->idToken,
-            ])->get($endpoint);
+                'Authorization' => "Bearer $this->idToken",
+            ];
+
+            // Send a GET request to the server
+            $response = Http::withHeaders($requestHeader)->get($requestEndpoint);
 
             // Decode the JSON response
             $orderDetails = $response->json();
 
             // Check for request failure or empty response
             if ($response->failed() || empty($orderDetails)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
-                throw new Exception("Failed to get the invoice. $errorMsg");
+                $errorMsg = !empty($response->body()) ? $response->body() : "Failed to get the invoice. Status code: $response->status()";
+                throw new Exception($errorMsg, $response->status());
             }
 
-            return $orderDetails;
+            return PaylinkInvoiceResponse::fromResponseData($orderDetails);
         } catch (Exception $e) {
             throw $e; // Re-throw the exception for higher-level handling
         }
@@ -260,13 +294,13 @@ class MerchantService
      * 
      * @param string $transactionNo The transaction number to be canceled.
      * 
-     * @return void
+     * @return bool
      * 
      * @throws Exception If authentication fails or if there's an issue with canceling the invoice.
      * 
      * @see https://paylinksa.readme.io/docs/cancel-invoice
      */
-    public function cancelInvoice(string $transactionNo)
+    public function cancelInvoice(string $transactionNo): bool
     {
         try {
             // Ensure authentication is done
@@ -274,29 +308,34 @@ class MerchantService
                 $this->_authentication();
             }
 
-            // Prepare the API endpoint
-            $endpoint = $this->apiLink . '/api/cancelInvoice';
+            // Request Endpoint
+            $requestEndpoint = "$this->apiBaseUrl/api/cancelInvoice";
 
-            // Construct the request body
+            // Request headers
+            $requestHeader = [
+                'accept' => 'application/json',
+                'content-type' => 'application/json',
+                'Authorization' => "Bearer $this->idToken",
+            ];
+
+            // Request body parameters
             $requestBody = [
                 'transactionNo' => $transactionNo,
             ];
 
             // Send a POST request to the server
-            $response = Http::withHeaders([
-                'accept' => 'application/json',
-                'content-type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->idToken,
-            ])->post($endpoint, $requestBody);
+            $response = Http::withHeaders($requestHeader)->post($requestEndpoint, $requestBody);
 
             // Decode the JSON response
             $responseData = $response->json();
 
             // Check for request failure or empty response
-            if ($response->failed() || empty($responseData) || empty($responseData['success']) || $responseData['success'] != 'true') {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
-                throw new Exception("Failed to cancel the invoice. $errorMsg");
+            if ($response->failed() || empty($responseData) || empty($responseData['success'])) {
+                $errorMsg = !empty($response->body()) ? $response->body() : "Failed to cancel the invoice. Status code: $response->status()";
+                throw new Exception($errorMsg, $response->status());
             }
+
+            return $responseData['success'] === 'true';
         } catch (Exception $e) {
             throw $e; // Re-throw the exception for higher-level handling
         }
@@ -353,7 +392,7 @@ class MerchantService
         ?string $smsMessage = null,
         ?array $supportedCardBrands = [],
         ?bool $displayPending = true,
-    ) {
+    ): PaylinkInvoiceResponse {
         try {
             // Ensure authentication is done
             if (empty($this->idToken)) {
@@ -361,24 +400,31 @@ class MerchantService
             }
 
             // Filter and sanitize supportedCardBrands
-            $filteredCardBrands = array_filter($supportedCardBrands, function ($brand) {
+            $filteredCardBrands = array_filter($supportedCardBrands, function ($brand): bool {
                 return is_string($brand) && in_array($brand, self::VALID_CARD_BRANDS);
             });
 
             // Convert PaylinkProduct objects to arrays
             $productsArray = [];
-            if (!empty($products)) {
-                foreach ($products as $product) {
-                    if ($product instanceof PaylinkProduct) {
-                        $productsArray[] = $product->toArray();
-                    }
+            foreach ($products as $index => $product) {
+                if ($product instanceof PaylinkProduct) {
+                    $productsArray[] = $product->toArray();
+                } else {
+                    throw new \InvalidArgumentException("Invalid product type at index $index, Each product must be an instance of Paylink\Models\PaylinkProduct.");
                 }
             }
 
-            // Prepare the API endpoint
-            $endpoint = $this->apiLink . '/api/payInvoice';
+            // Request Endpoint
+            $requestEndpoint = "$this->apiBaseUrl/api/payInvoice";
 
-            // Construct the request body
+            // Request headers
+            $requestHeader = [
+                'accept' => 'application/json',
+                'content-type' => 'application/json',
+                'Authorization' => "Bearer $this->idToken",
+            ];
+
+            // Request body parameters
             $requestBody = [
                 'amount' => $amount,
                 'callBackUrl' => $callBackUrl,
@@ -404,22 +450,18 @@ class MerchantService
             ];
 
             // Send a POST request to the server
-            $response = Http::withHeaders([
-                'accept' => 'application/json',
-                'content-type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->idToken,
-            ])->post($endpoint, $requestBody);
+            $response = Http::withHeaders($requestHeader)->post($requestEndpoint, $requestBody);
 
             // Decode the JSON response
-            $responseData = $response->json();
+            $orderDetails = $response->json();
 
             // Check for request failure or empty response
-            if ($response->failed() || empty($responseData)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
-                throw new Exception("Failed to process the payment for this direct invoice. $errorMsg");
+            if ($response->failed() || empty($orderDetails)) {
+                $errorMsg = !empty($response->body()) ? $response->body() : "Failed to process the payment for this direct invoice. Status code: $response->status()";
+                throw new Exception($errorMsg, $response->status());
             }
 
-            return $responseData;
+            return PaylinkInvoiceResponse::fromResponseData($orderDetails);
         } catch (Exception $e) {
             throw $e; // Re-throw the exception for higher-level handling
         }
@@ -467,10 +509,17 @@ class MerchantService
                 $this->_authentication();
             }
 
-            // Prepare the API endpoint
-            $endpoint = $this->apiLink . '/api/registerPayment';
+            // Request Endpoint
+            $requestEndpoint = "$this->apiBaseUrl/api/registerPayment";
 
-            // Construct the request body
+            // Request headers
+            $requestHeader = [
+                'accept' => 'application/json',
+                'content-type' => 'application/json',
+                'Authorization' => "Bearer $this->idToken",
+            ];
+
+            // Request body parameters
             $requestBody = [
                 "payment" => [
                     "value" => $paymentValue,
@@ -494,22 +543,37 @@ class MerchantService
             ];
 
             // Send a POST request to the server
-            $response = Http::withHeaders([
-                'accept' => 'application/json',
-                'content-type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->idToken,
-            ])->post($endpoint, $requestBody);
+            $response = Http::withHeaders($requestHeader)->post($requestEndpoint, $requestBody);
 
             // Decode the JSON response
             $responseData = $response->json();
 
             // Check for request failure or empty response
             if ($response->failed() || empty($responseData)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
-                throw new Exception("Failed to add this recurring payment. $errorMsg");
+                $errorMsg = !empty($response->body()) ? $response->body() : "Failed to add this recurring payment. Status code: $response->status()";
+                throw new Exception($errorMsg, $response->status());
             }
 
-            return $responseData;
+            $result = [];
+
+            if (!empty($responseData['response'])) {
+                $result['response'] = [
+                    "isSuccess" => $responseData['response']['isSuccess'],
+                    "message" => $responseData['response']['message'],
+                    "validationErrors" => $responseData['response']['validationErrors'],
+                ];
+            }
+
+            if (!empty($responseData['invoiceDetails'])) {
+                $result['invoiceDetails'] = [
+                    "paymentUrl" => $responseData['invoiceDetails']['paymentUrl'],
+                    "customerReference" => $responseData['invoiceDetails']['customerReference'],
+                    "userDefinedField" => $responseData['invoiceDetails']['userDefinedField'],
+                    "recurringId" => $responseData['invoiceDetails']['recurringId'],
+                ];
+            }
+
+            return $result;
         } catch (Exception $e) {
             throw $e; // Re-throw the exception for higher-level handling
         }
@@ -540,29 +604,32 @@ class MerchantService
                 $this->_authentication();
             }
 
-            // Prepare the API endpoint
-            $endpoint = $this->apiLink . '/api/sendDigitalProduct';
+            // Request Endpoint
+            $requestEndpoint = "$this->apiBaseUrl/api/sendDigitalProduct";
 
-            // Construct the request body
+            // Request headers
+            $requestHeader = [
+                'accept' => 'application/json',
+                'content-type' => 'application/json',
+                'Authorization' => "Bearer $this->idToken",
+            ];
+
+            // Request body parameters
             $requestBody = [
                 'message' => $message,
                 'orderNumber' => $orderNumber,
             ];
 
             // Send a POST request to the server
-            $response = Http::withHeaders([
-                'accept' => 'application/json',
-                'content-type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->idToken,
-            ])->post($endpoint, $requestBody);
+            $response = Http::withHeaders($requestHeader)->post($requestEndpoint, $requestBody);
 
             // Decode the JSON response
             $responseData = $response->json();
 
             // Check for request failure or empty response
             if ($response->failed() || empty($responseData)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
-                throw new Exception("Failed to process the payment for this direct invoice. $errorMsg");
+                $errorMsg = !empty($response->body()) ? $response->body() : "Failed to process the payment for this direct invoice. Status code: $response->status()";
+                throw new Exception($errorMsg, $response->status());
             }
 
             return $responseData;
@@ -572,13 +639,8 @@ class MerchantService
     }
 
     /** --------------------------------------------- HELPERS --------------------------------------------- */
-    public function getSecretKey(): string
-    {
-        return $this->secretKey;
-    }
-
     public function getPaymentPageUrl(string $transactionNo): string
     {
-        return $this->paymentPagePrefix . '/' . $transactionNo;
+        return "$this->paymentBaseUrl/$transactionNo";
     }
 }
