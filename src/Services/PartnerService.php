@@ -77,17 +77,17 @@ class PartnerService
      * 
      * @see https://paylinksa.readme.io/docs/authentication
      */
-    private function _authentication()
+    private function authentication()
     {
         try {
             // Construct the authentication endpoint URL
-            $endpoint = "$this->apiBaseUrl/api/partner/auth";
+            $endpoint = "{$this->apiBaseUrl}/api/partner/auth";
 
             // Prepare the request body with necessary parameters
             $requestBody = [
                 'profileNo' => $this->profileNo,
                 'apiKey' => $this->apiKey,
-                'persistToken' => $this->persistToken
+                'persistToken' => $this->persistToken,
             ];
 
             // Send a POST request to the authentication endpoint
@@ -96,19 +96,22 @@ class PartnerService
                 'content-type' => 'application/json',
             ])->post($endpoint, $requestBody);
 
+            // Check if the request was successful
+            if ($response->failed()) {
+                $this->handleResponseError($response, 'Failed to authenticate');
+            }
+
             // Decode the JSON response
             $responseData = $response->json();
 
-            // Check if the request failed or succeeded
-            if ($response->failed() || empty($responseData) || empty($responseData['id_token'])) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
-                throw new Exception("Failed to authenticate. $errorMsg");
+            if (empty($responseData['id_token'])) {
+                throw new Exception('Authentication token missing in the response.');
             }
 
-            // Set the authentication token for future API calls
+            // Store the token for future API calls
             $this->idToken = $responseData['id_token'];
         } catch (Exception $e) {
-            // Reset the authentication token on error
+            // In case of any exception, clear the token and rethrow the error
             $this->idToken = null;
             throw $e;
         }
@@ -147,11 +150,11 @@ class PartnerService
         try {
             // Ensure authentication is done
             if (empty($this->idToken)) {
-                $this->_authentication();
+                $this->authentication();
             }
 
             // Prepare the API endpoint
-            $endpoint = $this->apiBaseUrl . "/api/partner/register/check-license";
+            $endpoint = "{$this->apiBaseUrl}/api/partner/register/check-license";
 
             // Construct the request body
             $requestBody = [
@@ -168,17 +171,16 @@ class PartnerService
             $response = Http::withHeaders([
                 'accept' => 'application/json',
                 'content-type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->idToken,
+                'Authorization' => "Bearer {$this->idToken}",
             ])->post($endpoint, $requestBody);
+
+            // Check if the request was successful
+            if ($response->failed()) {
+                $this->handleResponseError($response, 'Failed to check license');
+            }
 
             // Decode the JSON response
             $responseData = $response->json();
-
-            // Check for request failure or empty response
-            if ($response->failed() || empty($responseData)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
-                throw new Exception("Failed to check license. $errorMsg");
-            }
 
             return $responseData;
         } catch (Exception $e) {
@@ -213,11 +215,11 @@ class PartnerService
         try {
             // Ensure authentication is done
             if (empty($this->idToken)) {
-                $this->_authentication();
+                $this->authentication();
             }
 
             // Prepare the API endpoint
-            $endpoint = $this->apiBaseUrl . "/api/partner/register/validate-otp";
+            $endpoint = "{$this->apiBaseUrl}/api/partner/register/validate-otp";
 
             // Construct the request body
             $requestBody = [
@@ -231,17 +233,16 @@ class PartnerService
             // Send a POST request to the server
             $response = Http::withHeaders([
                 'content-type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->idToken,
+                'Authorization' => "Bearer {$this->idToken}",
             ])->post($endpoint, $requestBody);
+
+            // Check if the request was successful
+            if ($response->failed()) {
+                $this->handleResponseError($response, 'Failed to validate mobile');
+            }
 
             // Decode the JSON response
             $responseData = $response->json();
-
-            // Check for request failure or empty response
-            if ($response->failed() || empty($responseData)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
-                throw new Exception("Failed to validate mobile. $errorMsg");
-            }
 
             return $responseData;
         } catch (Exception $e) {
@@ -296,11 +297,11 @@ class PartnerService
         try {
             // Ensure authentication is done
             if (empty($this->idToken)) {
-                $this->_authentication();
+                $this->authentication();
             }
 
             // Prepare the API endpoint
-            $endpoint = $this->apiBaseUrl . "/api/partner/register/add-info";
+            $endpoint = "{$this->apiBaseUrl}/api/partner/register/add-info";
 
             // Construct the request body
             $requestBody = [
@@ -324,17 +325,16 @@ class PartnerService
             // Send a POST request to the server
             $response = Http::withHeaders([
                 'content-type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->idToken,
+                'Authorization' => "Bearer {$this->idToken}",
             ])->post($endpoint, $requestBody);
+
+            // Check if the request was successful
+            if ($response->failed()) {
+                $this->handleResponseError($response, 'Failed to add information');
+            }
 
             // Decode the JSON response
             $responseData = $response->json();
-
-            // Check for request failure or empty response
-            if ($response->failed() || empty($responseData)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
-                throw new Exception("Failed to add information. $errorMsg");
-            }
 
             return $responseData;
         } catch (Exception $e) {
@@ -368,11 +368,11 @@ class PartnerService
         try {
             // Ensure authentication is done
             if (empty($this->idToken)) {
-                $this->_authentication();
+                $this->authentication();
             }
 
             // Prepare the API endpoint
-            $endpoint = $this->apiBaseUrl . "/api/partner/register/confirm-account";
+            $endpoint = "{$this->apiBaseUrl}/api/partner/register/confirm-account";
 
             // Construct the request body
             $requestBody = [
@@ -386,17 +386,16 @@ class PartnerService
             $response = Http::withHeaders([
                 'accept' => 'application/json',
                 'content-type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->idToken,
+                'Authorization' => "Bearer {$this->idToken}",
             ])->post($endpoint, $requestBody);
+
+            // Check if the request was successful
+            if ($response->failed()) {
+                $this->handleResponseError($response, 'Failed to confirm with Nafath');
+            }
 
             // Decode the JSON response
             $responseData = $response->json();
-
-            // Check for request failure or empty response
-            if ($response->failed() || empty($responseData)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
-                throw new Exception("Failed to confirm with Nafath. $errorMsg");
-            }
 
             return $responseData;
         } catch (Exception $e) {
@@ -421,27 +420,26 @@ class PartnerService
         try {
             // Ensure authentication is done
             if (empty($this->idToken)) {
-                $this->_authentication();
+                $this->authentication();
             }
 
             // Prepare the API endpoint
-            $endpoint = $this->apiBaseUrl . '/rest/partner/getMyMerchants';
+            $endpoint = "{$this->apiBaseUrl}/rest/partner/getMyMerchants";
 
             // Send a GET request to the server
             $response = Http::withHeaders([
                 'accept' => 'application/json',
                 'content-type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->idToken,
+                'Authorization' => "Bearer {$this->idToken}",
             ])->get($endpoint);
+
+            // Check if the request was successful
+            if ($response->failed()) {
+                $this->handleResponseError($response, 'Failed to get your merchants');
+            }
 
             // Decode the JSON response
             $responseData = $response->json();
-
-            // Check for request failure or empty response
-            if ($response->failed() || empty($responseData)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
-                throw new Exception("Failed to get your merchants. $errorMsg");
-            }
 
             return $responseData;
         } catch (Exception $e) {
@@ -479,27 +477,26 @@ class PartnerService
         try {
             // Ensure authentication is done
             if (empty($this->idToken)) {
-                $this->_authentication();
+                $this->authentication();
             }
 
             // Prepare the API endpoint
-            $endpoint = $this->apiBaseUrl . "/rest/partner/getMerchantKeys/$searchType/$searchValue?profileNo=$profileNo";
+            $endpoint = "{$this->apiBaseUrl}/rest/partner/getMerchantKeys/{$searchType}/{$searchValue}?profileNo={$profileNo}";
 
             // Send a GET request to the server
             $response = Http::withHeaders([
                 'accept' => 'application/json',
                 'content-type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->idToken,
+                'Authorization' => "Bearer {$this->idToken}",
             ])->get($endpoint);
+
+            // Check if the request was successful
+            if ($response->failed()) {
+                $this->handleResponseError($response, 'Failed to retrieve API credentials of the merchant');
+            }
 
             // Decode the JSON response
             $responseData = $response->json();
-
-            // Check for request failure or empty response
-            if ($response->failed() || empty($responseData)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
-                throw new Exception("Failed to retrieve API credentials of the merchant. $errorMsg");
-            }
 
             return $responseData;
         } catch (Exception $e) {
@@ -541,11 +538,11 @@ class PartnerService
 
             // Ensure authentication is done
             if (empty($this->idToken)) {
-                $this->_authentication();
+                $this->authentication();
             }
 
             // Prepare the API endpoint
-            $endpoint = $this->apiBaseUrl . "/rest/partner/test/archive-merchant/$partnerProfileNo";
+            $endpoint = "{$this->apiBaseUrl}/rest/partner/test/archive-merchant/{$partnerProfileNo}";
 
             // Construct the request body
             $requestBody = [
@@ -557,21 +554,43 @@ class PartnerService
             $response = Http::withHeaders([
                 'accept' => 'application/json',
                 'content-type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->idToken,
+                'Authorization' => "Bearer {$this->idToken}",
             ])->post($endpoint, $requestBody);
+
+            // Check if the request was successful
+            if ($response->failed()) {
+                $this->handleResponseError($response, 'Failed to archive this merchant');
+            }
 
             // Decode the JSON response
             $responseData = $response->json();
-
-            // Check for request failure or empty response
-            if ($response->failed() || empty($responseData)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Status code: " . $response->status();
-                throw new Exception("Failed to archive this merchant. $errorMsg");
-            }
 
             return $responseData;
         } catch (Exception $e) {
             throw $e; // Re-throw the exception for higher-level handling
         }
+    }
+
+    /** --------------------------------------------- HELPERS --------------------------------------------- */
+    /**
+     * Handle errors in Paylink response.
+     *
+     * @param \Illuminate\Http\Client\Response $response
+     * @throws \Exception
+     */
+    private function handleResponseError($response, string $defaultErrorMsg)
+    {
+        // Try to extract error details from the response body
+        $responseData = $response->json();
+        $errorMsg = $responseData['detail'] ?? $responseData['title'] ?? $responseData['error'] ?? $response->body();
+
+        if (empty($errorMsg)) {
+            $errorMsg = $defaultErrorMsg;
+        }
+
+        // Include the status code in the error message for debugging purposes
+        $errorMsg .= ", Status code: {$response->status()}";
+
+        throw new Exception($errorMsg, $response->status());
     }
 }

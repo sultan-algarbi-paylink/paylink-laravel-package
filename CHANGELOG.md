@@ -1,3 +1,22 @@
+## 2.0.1
+
+### Method Renaming:
+
+- `_authentication()` renamed to `authentication()` to follow standard naming conventions.
+
+### Response Error Handling:
+
+- Introduced `handleResponseError()` method to streamline error handling and provide more detailed error messages from API responses.
+
+### Code Cleanup:
+
+- Changed variable names for headers from `$requestHeader` to `$requestHeaders` for consistency.
+- Removed redundant or unnecessary code, improving clarity and structure.
+
+### Improved Exception Messages:
+
+- Added more specific exception messages, especially for missing authentication tokens in the response.
+
 ## 2.0.0
 
 ### Added

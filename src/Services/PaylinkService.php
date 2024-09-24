@@ -90,41 +90,44 @@ class PaylinkService
      * 
      * @see https://paylinksa.readme.io/docs/authentication Official Paylink API authentication documentation.
      */
-    private function _authentication()
+    private function authentication()
     {
         try {
             // Request Endpoint
-            $requestEndpoint = "$this->apiBaseUrl/api/auth";
+            $requestEndpoint = "{$this->apiBaseUrl}/api/auth";
 
             // Request headers
-            $requestHeader = [
-                'accept' => 'application/json',
-                'content-type' => 'application/json',
+            $requestHeaders = [
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
             ];
 
             // Request body parameters
             $requestBody = [
                 'apiId' => $this->apiId,
                 'secretKey' => $this->secretKey,
-                'persistToken' => $this->persistToken
+                'persistToken' => $this->persistToken,
             ];
 
             // Send a POST request to the authentication endpoint
-            $response = Http::withHeaders($requestHeader)->post($requestEndpoint, $requestBody);
+            $response = Http::withHeaders($requestHeaders)->post($requestEndpoint, $requestBody);
 
-            // Decode the JSON response
-            $responseData = $response->json();
-
-            // Check if the request failed or succeeded
-            if ($response->failed() || empty($responseData) || empty($responseData['id_token'])) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Failed to authenticate. Status code: $response->status()";
-                throw new Exception($errorMsg, $response->status());
+            // Check if the request was successful
+            if ($response->failed()) {
+                $this->handleResponseError($response, 'Failed to authenticate');
             }
 
-            // Set the authentication token for future API calls
+            // Decode the JSON response and extract the token
+            $responseData = $response->json();
+
+            if (empty($responseData['id_token'])) {
+                throw new Exception('Authentication token missing in the response.');
+            }
+
+            // Store the token for future API calls
             $this->idToken = $responseData['id_token'];
         } catch (Exception $e) {
-            // Reset the authentication token on error
+            // In case of any exception, clear the token and rethrow the error
             $this->idToken = null;
             throw $e;
         }
@@ -175,7 +178,7 @@ class PaylinkService
         try {
             // Ensure authentication is done
             if (empty($this->idToken)) {
-                $this->_authentication();
+                $this->authentication();
             }
 
             // Filter and sanitize supportedCardBrands
@@ -189,18 +192,18 @@ class PaylinkService
                 if ($product instanceof PaylinkProduct) {
                     $productsArray[] = $product->toArray();
                 } else {
-                    throw new \InvalidArgumentException("Invalid product type at index $index, Each product must be an instance of Paylink\Models\PaylinkProduct.");
+                    throw new \InvalidArgumentException("Invalid product type at index {$index}, Each product must be an instance of Paylink\Models\PaylinkProduct.");
                 }
             }
 
             // Request Endpoint
-            $requestEndpoint = "$this->apiBaseUrl/api/addInvoice";
+            $requestEndpoint = "{$this->apiBaseUrl}/api/addInvoice";
 
             // Request headers
-            $requestHeader = [
-                'accept' => 'application/json',
-                'content-type' => 'application/json',
-                'Authorization' => "Bearer $this->idToken",
+            $requestHeaders = [
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+                'Authorization' => "Bearer {$this->idToken}",
             ];
 
             // Request body parameters
@@ -221,15 +224,18 @@ class PaylinkService
             ];
 
             // Send a POST request to the server
-            $response = Http::withHeaders($requestHeader)->post($requestEndpoint, $requestBody);
+            $response = Http::withHeaders($requestHeaders)->post($requestEndpoint, $requestBody);
 
-            // Decode the JSON response
+            // Check if the request was successful
+            if ($response->failed()) {
+                $this->handleResponseError($response, 'Failed to add the invoice');
+            }
+
+            // Decode the JSON response and extract the order details
             $orderDetails = $response->json();
 
-            // Check for request failure or empty response
-            if ($response->failed() || empty($orderDetails)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Failed to add the invoice. Status code: $response->status()";
-                throw new Exception($errorMsg, $response->status());
+            if (empty($orderDetails)) {
+                throw new Exception('Order details missing from the response');
             }
 
             return PaylinkInvoiceResponse::fromResponseData($orderDetails);
@@ -256,29 +262,32 @@ class PaylinkService
         try {
             // Ensure authentication is done
             if (empty($this->idToken)) {
-                $this->_authentication();
+                $this->authentication();
             }
 
             // Request Endpoint
-            $requestEndpoint = "$this->apiBaseUrl/api/getInvoice/$transactionNo";
+            $requestEndpoint = "{$this->apiBaseUrl}/api/getInvoice/{$transactionNo}";
 
             // Request headers
-            $requestHeader = [
-                'accept' => 'application/json',
-                'content-type' => 'application/json',
-                'Authorization' => "Bearer $this->idToken",
+            $requestHeaders = [
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+                'Authorization' => "Bearer {$this->idToken}",
             ];
 
             // Send a GET request to the server
-            $response = Http::withHeaders($requestHeader)->get($requestEndpoint);
+            $response = Http::withHeaders($requestHeaders)->get($requestEndpoint);
 
-            // Decode the JSON response
+            // Check if the request was successful
+            if ($response->failed()) {
+                $this->handleResponseError($response, 'Failed to get the invoice');
+            }
+
+            // Decode the JSON response and extract the order details
             $orderDetails = $response->json();
 
-            // Check for request failure or empty response
-            if ($response->failed() || empty($orderDetails)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Failed to get the invoice. Status code: $response->status()";
-                throw new Exception($errorMsg, $response->status());
+            if (empty($orderDetails)) {
+                throw new Exception('Order details missing from the response');
             }
 
             return PaylinkInvoiceResponse::fromResponseData($orderDetails);
@@ -305,17 +314,17 @@ class PaylinkService
         try {
             // Ensure authentication is done
             if (empty($this->idToken)) {
-                $this->_authentication();
+                $this->authentication();
             }
 
             // Request Endpoint
-            $requestEndpoint = "$this->apiBaseUrl/api/cancelInvoice";
+            $requestEndpoint = "{$this->apiBaseUrl}/api/cancelInvoice";
 
             // Request headers
-            $requestHeader = [
-                'accept' => 'application/json',
-                'content-type' => 'application/json',
-                'Authorization' => "Bearer $this->idToken",
+            $requestHeaders = [
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+                'Authorization' => "Bearer {$this->idToken}",
             ];
 
             // Request body parameters
@@ -324,16 +333,15 @@ class PaylinkService
             ];
 
             // Send a POST request to the server
-            $response = Http::withHeaders($requestHeader)->post($requestEndpoint, $requestBody);
+            $response = Http::withHeaders($requestHeaders)->post($requestEndpoint, $requestBody);
+
+            // Check if the request was successful
+            if ($response->failed()) {
+                $this->handleResponseError($response, 'Failed to cancel the invoice');
+            }
 
             // Decode the JSON response
             $responseData = $response->json();
-
-            // Check for request failure or empty response
-            if ($response->failed() || empty($responseData) || empty($responseData['success'])) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Failed to cancel the invoice. Status code: $response->status()";
-                throw new Exception($errorMsg, $response->status());
-            }
 
             return $responseData['success'] === 'true';
         } catch (Exception $e) {
@@ -396,7 +404,7 @@ class PaylinkService
         try {
             // Ensure authentication is done
             if (empty($this->idToken)) {
-                $this->_authentication();
+                $this->authentication();
             }
 
             // Filter and sanitize supportedCardBrands
@@ -410,18 +418,18 @@ class PaylinkService
                 if ($product instanceof PaylinkProduct) {
                     $productsArray[] = $product->toArray();
                 } else {
-                    throw new \InvalidArgumentException("Invalid product type at index $index, Each product must be an instance of Paylink\Models\PaylinkProduct.");
+                    throw new \InvalidArgumentException("Invalid product type at index {$index}, Each product must be an instance of Paylink\Models\PaylinkProduct.");
                 }
             }
 
             // Request Endpoint
-            $requestEndpoint = "$this->apiBaseUrl/api/payInvoice";
+            $requestEndpoint = "{$this->apiBaseUrl}/api/payInvoice";
 
             // Request headers
-            $requestHeader = [
-                'accept' => 'application/json',
-                'content-type' => 'application/json',
-                'Authorization' => "Bearer $this->idToken",
+            $requestHeaders = [
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+                'Authorization' => "Bearer {$this->idToken}",
             ];
 
             // Request body parameters
@@ -446,19 +454,22 @@ class PaylinkService
                     ],
                     'number' => $cardNumber,
                     'securityCode' => $cardSecurityCode,
-                ]
+                ],
             ];
 
             // Send a POST request to the server
-            $response = Http::withHeaders($requestHeader)->post($requestEndpoint, $requestBody);
+            $response = Http::withHeaders($requestHeaders)->post($requestEndpoint, $requestBody);
 
-            // Decode the JSON response
+            // Check if the request was successful
+            if ($response->failed()) {
+                $this->handleResponseError($response, 'Failed to process the payment for this direct invoice');
+            }
+
+            // Decode the JSON response and extract the order details
             $orderDetails = $response->json();
 
-            // Check for request failure or empty response
-            if ($response->failed() || empty($orderDetails)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Failed to process the payment for this direct invoice. Status code: $response->status()";
-                throw new Exception($errorMsg, $response->status());
+            if (empty($orderDetails)) {
+                throw new Exception('Order details missing from the response');
             }
 
             return PaylinkInvoiceResponse::fromResponseData($orderDetails);
@@ -506,17 +517,17 @@ class PaylinkService
         try {
             // Ensure authentication is done
             if (empty($this->idToken)) {
-                $this->_authentication();
+                $this->authentication();
             }
 
             // Request Endpoint
-            $requestEndpoint = "$this->apiBaseUrl/api/registerPayment";
+            $requestEndpoint = "{$this->apiBaseUrl}/api/registerPayment";
 
             // Request headers
-            $requestHeader = [
-                'accept' => 'application/json',
-                'content-type' => 'application/json',
-                'Authorization' => "Bearer $this->idToken",
+            $requestHeaders = [
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+                'Authorization' => "Bearer {$this->idToken}",
             ];
 
             // Request body parameters
@@ -539,20 +550,19 @@ class PaylinkService
                     "intervalDays" => $recurringIntervalDays,
                     "iterations" => $recurringIterations,
                     "retryCount" => $recurringRetryCount
-                ]
+                ],
             ];
 
             // Send a POST request to the server
-            $response = Http::withHeaders($requestHeader)->post($requestEndpoint, $requestBody);
+            $response = Http::withHeaders($requestHeaders)->post($requestEndpoint, $requestBody);
+
+            // Check if the request was successful
+            if ($response->failed()) {
+                $this->handleResponseError($response, 'Failed to add this recurring payment');
+            }
 
             // Decode the JSON response
             $responseData = $response->json();
-
-            // Check for request failure or empty response
-            if ($response->failed() || empty($responseData)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Failed to add this recurring payment. Status code: $response->status()";
-                throw new Exception($errorMsg, $response->status());
-            }
 
             $result = [];
 
@@ -601,17 +611,17 @@ class PaylinkService
         try {
             // Ensure authentication is done
             if (empty($this->idToken)) {
-                $this->_authentication();
+                $this->authentication();
             }
 
             // Request Endpoint
-            $requestEndpoint = "$this->apiBaseUrl/api/sendDigitalProduct";
+            $requestEndpoint = "{$this->apiBaseUrl}/api/sendDigitalProduct";
 
             // Request headers
-            $requestHeader = [
-                'accept' => 'application/json',
-                'content-type' => 'application/json',
-                'Authorization' => "Bearer $this->idToken",
+            $requestHeaders = [
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+                'Authorization' => "Bearer {$this->idToken}",
             ];
 
             // Request body parameters
@@ -621,16 +631,15 @@ class PaylinkService
             ];
 
             // Send a POST request to the server
-            $response = Http::withHeaders($requestHeader)->post($requestEndpoint, $requestBody);
+            $response = Http::withHeaders($requestHeaders)->post($requestEndpoint, $requestBody);
+
+            // Check if the request was successful
+            if ($response->failed()) {
+                $this->handleResponseError($response, 'Failed to send this digital product');
+            }
 
             // Decode the JSON response
             $responseData = $response->json();
-
-            // Check for request failure or empty response
-            if ($response->failed() || empty($responseData)) {
-                $errorMsg = !empty($response->body()) ? $response->body() : "Failed to process the payment for this direct invoice. Status code: $response->status()";
-                throw new Exception($errorMsg, $response->status());
-            }
 
             return $responseData;
         } catch (Exception $e) {
@@ -639,8 +648,30 @@ class PaylinkService
     }
 
     /** --------------------------------------------- HELPERS --------------------------------------------- */
+    /**
+     * Handle errors in Paylink response.
+     *
+     * @param \Illuminate\Http\Client\Response $response
+     * @throws \Exception
+     */
+    private function handleResponseError($response, string $defaultErrorMsg)
+    {
+        // Try to extract error details from the response body
+        $responseData = $response->json();
+        $errorMsg = $responseData['detail'] ?? $responseData['title'] ?? $responseData['error'] ?? $response->body();
+
+        if (empty($errorMsg)) {
+            $errorMsg = $defaultErrorMsg;
+        }
+
+        // Include the status code in the error message for debugging purposes
+        $errorMsg .= ", Status code: {$response->status()}";
+
+        throw new Exception($errorMsg, $response->status());
+    }
+
     public function getPaymentPageUrl(string $transactionNo): string
     {
-        return "$this->paymentBaseUrl/$transactionNo";
+        return "{$this->paymentBaseUrl}/{$transactionNo}";
     }
 }
